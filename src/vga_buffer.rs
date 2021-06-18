@@ -1,8 +1,8 @@
 use core::fmt;
+use core::fmt::Write;
 use lazy_static::lazy_static;
 use spin::Mutex;
 use volatile::Volatile;
-use core::fmt::Write;
 use x86_64::instructions::interrupts;
 use x86_64::instructions::port::Port;
 
@@ -55,7 +55,7 @@ struct Buffer {
 
 struct Cursor {
     port1: Port<u8>,
-    port2: Port<u8>
+    port2: Port<u8>,
 }
 
 pub struct Writer {
@@ -175,7 +175,9 @@ impl Writer {
     }
 
     fn read_at_current(&self) -> u8 {
-        self.buffer.chars[self.row_position][self.column_position].read().ascii_character
+        self.buffer.chars[self.row_position][self.column_position]
+            .read()
+            .ascii_character
     }
 
     fn update_cursor(&mut self) {

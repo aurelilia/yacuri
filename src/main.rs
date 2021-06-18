@@ -4,13 +4,17 @@
 #![test_runner(yacuri::test_runner)]
 #![reexport_test_harness_main = "test_main"]
 
+extern crate alloc;
+
 mod vga_buffer;
 
+use bootloader::{entry_point, BootInfo};
 use core::panic::PanicInfo;
 use yacuri::hlt_loop;
 
-#[no_mangle]
-pub extern "C" fn _start() -> ! {
+entry_point!(kernel_main);
+
+fn kernel_main(boot_info: &'static BootInfo) -> ! {
     println!("Hello World! rust says trans rights");
 
     yacuri::init();

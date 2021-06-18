@@ -1,2 +1,5 @@
 [workspace]
-members = ["kernel"]
+members = [
+    "kernel",
+    "lang",
+]

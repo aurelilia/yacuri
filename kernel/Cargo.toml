@@ -18,6 +18,11 @@ pc-keyboard = "0.5.0"
 lazy_static = { version = "1.0", features = ["spin_no_std"]}
 linked_list_allocator = "0.9.0"
 
+[dependencies.fatfs]
+git = "https://github.com/rafalh/rust-fatfs"
+rev = "d0ed1b776bc24b3ef5e76b0335c90d2bd4d6d2b1"
+features = ["unicode", "lfn", "alloc"]
+default-features = false
 
 [[test]]
 name = "should_panic"
@@ -28,6 +33,9 @@ harness = false
 
 
 [package.metadata.bootimage]
+run-args = [
+    "-drive", "format=raw,file=fs.bin"
+]
 test-args = [
     "-device", "isa-debug-exit,iobase=0xf4,iosize=0x04", "-serial", "stdio",
     "-display", "none"

@@ -22,7 +22,8 @@ impl StatusBits {
 #[repr(u8)]
 enum Command {
     Read = 0x20,
-    Write = 0x30
+    Write = 0x30,
+    CacheFlush = 0xE7
 }
 
 #[repr(C)]
@@ -46,7 +47,7 @@ enum ControlPort {
 pub struct AtaBus {
     io_base: u16,
     control_base: u16,
-    position: u64,
+    position: usize,
 }
 
 impl AtaBus {
@@ -60,13 +61,34 @@ impl AtaBus {
         self.io_write(IoPort::LbaHigh, (lba >> 16) as u8);
     }
 
+    fn get_partial_write_sectors(&mut self, len: usize) -> (Option<[u16; 256]>, Option<[u16; 256]>) {
+        let start = self.read_sector_if_unaligned();
+        self.position += len;
+        let end = self.read_sector_if_unaligned();
+        self.position -= len;
+        (start, end)
+    }
+
+    fn read_sector_if_unaligned(&self) -> Option<[u16; 256]> {
+        if !self.pos_aligned() {
+            Some(self.read_sector())
+        } else {
+            None
+        }
+    }
+
     fn read_sector(&self) -> [u16; 256] {
         self.before_read_write(1);
         self.send_command(Command::Read);
 
         let mut data_port = self.io_port_16(IoPort::Data);
+        let mut buf = [0; 256];
         self.wait_ready();
-        [unsafe { data_port.read() }; 256]
+        for word in 0..256 {
+            let read = unsafe { data_port.read() };
+            buf[word] = read;
+        }
+        buf
     }
 
     fn wait_ready(&self) {
@@ -108,13 +130,21 @@ impl AtaBus {
     }
 
     fn min_required_sector_count(&self, bytes: usize) -> u8 {
-        let sector_aligned = bytes & 511 == 0 && bytes != 0;
+        let sector_aligned = Self::is_sector_aligned(bytes) && bytes != 0;
         let bleeds_into_next = if sector_aligned {
-            (self.position & 511) != 0
+            !self.pos_aligned()
         } else {
-            (self.position & 511) + (bytes as u64 & 511) > 512
+            (self.position & 511) + (bytes & 511) > 512
         };
         ((bytes / 512) as u8) + bleeds_into_next as u8 + !sector_aligned as u8
+    }
+
+    fn pos_aligned(&self) -> bool {
+        Self::is_sector_aligned(self.position as usize)
+    }
+
+    fn is_sector_aligned(value: usize) -> bool {
+        value & 511 == 0
     }
 
     pub fn new(io_base: u16, control_base: u16) -> AtaBus {
@@ -160,14 +190,41 @@ impl Read for AtaBus {
             }
         }
 
-        self.position += buf.len() as u64;
+        self.position += buf.len();
         Ok(buf.len())
     }
 }
 
 impl Write for AtaBus {
     fn write(&mut self, buf: &[u8]) -> Result<usize, Self::Error> {
-        todo!();
+        let sector_count = self.min_required_sector_count(buf.len());
+        let (start_sector, end_sector) = self.get_partial_write_sectors(buf.len());
+        self.before_read_write(sector_count);
+        self.send_command(Command::Write);
+
+        let mut data_port = self.io_port_16(IoPort::Data);
+        let sector_offset = (self.position % 512) as i64;
+        for sector in 0..sector_count {
+            self.wait_ready();
+            for word in 0..256usize {
+                let index: i64 = (((sector as i64 * 256) + word as i64) * 2) - sector_offset;
+                match () {
+                    _ if index < 0 => unsafe { data_port.write(start_sector.unwrap()[word]) }
+
+                    _ if index >= buf.len() as i64 => unsafe { data_port.write(end_sector.unwrap()[word]) }
+
+                    _ => unsafe {
+                        let index = index as usize;
+                        let value = buf[index] as u16 + ((buf[index + 1] as u16) << 8);
+                        data_port.write(value)
+                    }
+                }
+            }
+        }
+
+        self.send_command(Command::CacheFlush);
+        self.position += buf.len();
+        Ok(buf.len())
     }
 
     fn flush(&mut self) -> Result<(), Self::Error> {
@@ -179,15 +236,15 @@ impl Seek for AtaBus {
     fn seek(&mut self, pos: SeekFrom) -> Result<u64, Self::Error> {
         match pos {
             SeekFrom::Start(pos) => {
-                self.position = pos;
+                self.position = pos as usize;
                 Ok(pos)
             }
 
             SeekFrom::Current(by) => {
                 let res = (self.position as i64 + by);
                 if res >= 0 {
-                    self.position = res as u64;
-                    Ok(self.position)
+                    self.position = res as usize;
+                    Ok(self.position as u64)
                 } else {
                     Err(())
                 }
@@ -201,6 +258,7 @@ impl Seek for AtaBus {
 #[cfg(test)]
 mod tests {
     use super::AtaBus;
+    use crate::serial_println;
     use fatfs::{Seek, SeekFrom, Read, Write};
     use spin::{Mutex, MutexGuard};
     use lazy_static::lazy_static;
@@ -287,6 +345,23 @@ mod tests {
     }
 
     #[test_case]
+    fn write_preserve() {
+        let mut bus = init();
+        let mut rng = SmallRng::seed_from_u64(679);
+        let mut write_buf = [35; 100];
+        let mut verify_buf = [0; 512];
+
+        serial_println!("{:?}", write_buf);
+        bus.seek(SeekFrom::Start(100));
+        bus.write(&write_buf);
+        bus.seek(SeekFrom::Start(0));
+        bus.read(&mut verify_buf);
+        assert_eq!(verify_buf[0..100], ACTUAL[0..100]);
+        assert_eq!(verify_buf[100..200], write_buf);
+        assert_eq!(verify_buf[200..512], ACTUAL[200..512]);
+    }
+
+    #[test_case]
     fn write_first_sector() {
         write_verify::<512>(1, 124254)
     }
@@ -327,7 +402,7 @@ mod tests {
                 *elem = rng.next_u32() as u8;
             }
 
-            bus.write(&mut write_buf);
+            bus.write(&write_buf);
             bus.seek(SeekFrom::Current(-(COUNT as i64)));
             bus.read(&mut verify_buf);
             assert_eq!(write_buf, verify_buf);

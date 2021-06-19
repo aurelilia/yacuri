@@ -1,16 +1,16 @@
-use crate::allocator::Locked;
-use core::alloc::{GlobalAlloc, Layout};
-use core::ptr::NonNull;
-use core::{mem, ptr};
+use crate::allocator::Lock;
+use core::{
+    alloc::{GlobalAlloc, Layout},
+    mem, ptr,
+    ptr::NonNull,
+};
 
 /// The block sizes to use.
-///
 /// The sizes must each be power of 2 because they are also used as
 /// the block alignment (alignments must be always powers of 2).
 const BLOCK_SIZES: &[usize] = &[8, 16, 32, 64, 128, 256, 512, 1024, 2048];
 
 /// Choose an appropriate block size for the given layout.
-///
 /// Returns an index into the `BLOCK_SIZES` array.
 fn list_index(layout: &Layout) -> Option<usize> {
     let required_block_size = layout.size().max(layout.align());
@@ -21,6 +21,11 @@ struct ListNode {
     next: Option<&'static mut ListNode>,
 }
 
+/// An allocator allocating in fixed size blocks, storing
+/// allocated blocks of a given size as a linked list similar to a LLA.
+/// Wastes some memory in exchange for speed.
+/// Falls back to `linked_list_allocator` when the wanted allocation
+/// exceeds the maximum block size.
 pub struct FixedSizeBlockAllocator {
     list_heads: [Option<&'static mut ListNode>; BLOCK_SIZES.len()],
     fallback_allocator: linked_list_allocator::Heap,
@@ -38,6 +43,7 @@ impl FixedSizeBlockAllocator {
 
     /// Initialize the allocator with the given heap bounds.
     ///
+    /// # Safety
     /// This function is unsafe because the caller must guarantee that the given
     /// heap bounds are valid and that the heap is unused. This method must be
     /// called only once.
@@ -54,7 +60,7 @@ impl FixedSizeBlockAllocator {
     }
 }
 
-unsafe impl GlobalAlloc for Locked<FixedSizeBlockAllocator> {
+unsafe impl GlobalAlloc for Lock<FixedSizeBlockAllocator> {
     unsafe fn alloc(&self, layout: Layout) -> *mut u8 {
         let mut allocator = self.lock();
         match list_index(&layout) {

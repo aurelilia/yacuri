@@ -6,14 +6,16 @@
 
 extern crate alloc;
 
-use alloc::boxed::Box;
-use alloc::vec::Vec;
+use alloc::{boxed::Box, vec::Vec};
 use bootloader::{entry_point, BootInfo};
 use core::panic::PanicInfo;
 use x86_64::VirtAddr;
-use yacuri::allocator;
-use yacuri::allocator::HEAP_SIZE;
-use yacuri::memory::{self, BootInfoFrameAllocator};
+use yacuri::{
+    allocator,
+    allocator::HEAP_SIZE,
+    memory::{self, BootInfoFrameAllocator},
+};
+use yacuri::allocator::memory;
 
 entry_point!(main);
 

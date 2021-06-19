@@ -5,11 +5,11 @@ pub struct Lexer<'l> {
 }
 
 impl<'l> Lexer<'l> {
-    pub fn span(&self) -> Span {
+    pub fn _span(&self) -> Span {
         self.logos.span()
     }
 
-    pub fn new(input: &'l str) -> Self {
+    pub fn _new(input: &'l str) -> Self {
         Self {
             logos: Token::lexer(input),
         }

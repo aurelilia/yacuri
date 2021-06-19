@@ -8,13 +8,18 @@ extern crate alloc;
 
 use bootloader::{entry_point, BootInfo};
 use core::panic::PanicInfo;
-use yacuri::{hlt_loop, print, println, allocator, memory};
-use yacuri::drivers::disk::ata_pio::AtaDrive;
-use fatfs::{Read, Write};
-use alloc::boxed::Box;
+use fatfs::Write;
 use x86_64::VirtAddr;
-use yacuri::memory::BootInfoFrameAllocator;
-use yacuri::drivers::disk::fat::{fat_from_ata, fat_from_secondary};
+use yacuri::{
+    allocator,
+    drivers::disk::{
+        fat::{fat_from_secondary},
+    },
+    hlt_loop,
+    println,
+};
+use yacuri::allocator::memory;
+use yacuri::allocator::memory::BootInfoFrameAllocator;
 
 entry_point!(kernel_main);
 
@@ -30,7 +35,7 @@ fn kernel_main(boot_info: &'static BootInfo) -> ! {
         root_dir.create_dir("helloWorld").unwrap();
         let mut file = root_dir.create_file("helloWorld/yay").unwrap();
         file.truncate().unwrap();
-        file.write_all(b"you did it!");
+        file.write_all(b"you did it!").unwrap();
 
         let dir = root_dir.open_dir("helloWorld").unwrap();
         for r in dir.iter() {
@@ -49,9 +54,7 @@ fn kernel_main(boot_info: &'static BootInfo) -> ! {
 fn init_memory(boot_info: &'static BootInfo) {
     let phys_mem_offset = VirtAddr::new(boot_info.physical_memory_offset);
     let mut mapper = unsafe { memory::init(phys_mem_offset) };
-    let mut frame_allocator = unsafe {
-        BootInfoFrameAllocator::init(&boot_info.memory_map)
-    };
+    let mut frame_allocator = unsafe { BootInfoFrameAllocator::init(&boot_info.memory_map) };
     allocator::init_heap(&mut mapper, &mut frame_allocator).expect("heap initialization failed");
 }
 
@@ -66,11 +69,4 @@ fn panic(info: &PanicInfo) -> ! {
 #[panic_handler]
 fn panic(info: &PanicInfo) -> ! {
     yacuri::test_panic_handler(info)
-}
-
-#[test_case]
-fn trivial_assertion() {
-    print!("trivial assertion... ");
-    assert_eq!(1, 1);
-    println!("[ok]");
 }

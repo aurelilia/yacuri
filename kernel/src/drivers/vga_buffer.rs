@@ -1,10 +1,8 @@
-use core::fmt;
-use core::fmt::Write;
+use core::{fmt, fmt::Write};
 use lazy_static::lazy_static;
 use spin::Mutex;
 use volatile::Volatile;
-use x86_64::instructions::interrupts;
-use x86_64::instructions::port::Port;
+use x86_64::instructions::{interrupts, port::Port};
 
 #[allow(dead_code)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -113,18 +111,6 @@ impl Writer {
         }
     }
 
-    fn shift_rows_down(&mut self, by: usize) {
-        for row in 0..(BUFFER_HEIGHT - by) {
-            for col in 0..BUFFER_WIDTH {
-                let character = self.buffer.chars[row][col].read();
-                self.buffer.chars[row + by][col].write(character);
-            }
-        }
-        for row in 0..by {
-            self.clear_row(row)
-        }
-    }
-
     fn remove_current_char(&mut self) {
         self.shift_by(-1);
         self.buffer.chars[self.row_position][self.column_position].write(ScreenChar {
@@ -134,7 +120,7 @@ impl Writer {
     }
 
     fn shift_by(&mut self, by: isize) {
-        let res = (self.column_position as isize + by);
+        let res = self.column_position as isize + by;
         if res < 0 {
             self.row_position -= 1;
             self.column_position = BUFFER_WIDTH - 1;
@@ -152,7 +138,7 @@ impl Writer {
     }
 
     fn shift_row_by(&mut self, by: isize) {
-        let res = (self.row_position as isize + by);
+        let res = self.row_position as isize + by;
         if res < 0 {
             self.row_position = 0;
         } else if res >= BUFFER_HEIGHT as isize {
@@ -239,30 +225,35 @@ pub fn shift_row(by: isize) {
     interrupts::without_interrupts(|| WRITER.lock().shift_row_by(by));
 }
 
-#[test_case]
-fn test_println_simple() {
-    println!("test_println_simple output");
-}
+#[cfg(test)]
+mod tests {
+    use super::{BUFFER_HEIGHT, WRITER};
 
-#[test_case]
-fn test_println_many() {
-    for _ in 0..200 {
-        println!("test_println_many output");
+    #[test_case]
+    fn test_println_simple() {
+        println!("test_println_simple output");
     }
-}
 
-#[test_case]
-fn test_println_output() {
-    use core::fmt::Write;
-    use x86_64::instructions::interrupts;
-
-    let s = "Some test string that fits on a single line";
-    interrupts::without_interrupts(|| {
-        let mut writer = WRITER.lock();
-        writeln!(writer, "\n{}", s).expect("writeln failed");
-        for (i, c) in s.chars().enumerate() {
-            let screen_char = writer.buffer.chars[BUFFER_HEIGHT - 2][i].read();
-            assert_eq!(char::from(screen_char.ascii_character), c);
+    #[test_case]
+    fn test_println_many() {
+        for _ in 0..200 {
+            println!("test_println_many output");
         }
-    });
+    }
+
+    #[test_case]
+    fn test_println_output() {
+        use core::fmt::Write;
+        use x86_64::instructions::interrupts;
+
+        let s = "Some test string that fits on a single line";
+        interrupts::without_interrupts(|| {
+            let mut writer = WRITER.lock();
+            writeln!(writer, "\n{}", s).expect("writeln failed");
+            for (i, c) in s.chars().enumerate() {
+                let screen_char = writer.buffer.chars[BUFFER_HEIGHT - 2][i].read();
+                assert_eq!(char::from(screen_char.ascii_character), c);
+            }
+        });
+    }
 }

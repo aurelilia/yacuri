@@ -1,5 +1,5 @@
 use fixed_size_block::FixedSizeBlockAllocator;
-use linked_list_allocator::LockedHeap;
+use spin::{Mutex, MutexGuard};
 use x86_64::{
     structures::paging::{
         mapper::MapToError, FrameAllocator, Mapper, Page, PageTableFlags, Size4KiB,
@@ -9,13 +9,13 @@ use x86_64::{
 
 pub mod bump;
 pub mod fixed_size_block;
-pub mod linked_list;
+pub mod memory;
 
 #[global_allocator]
-static ALLOCATOR: Locked<FixedSizeBlockAllocator> = Locked::new(FixedSizeBlockAllocator::new());
+static ALLOCATOR: Lock<FixedSizeBlockAllocator> = Lock::new(FixedSizeBlockAllocator::new());
 
 pub const HEAP_START: usize = 0x_4444_4444_0000;
-pub const HEAP_SIZE: usize = 100 * 1024;
+pub const HEAP_SIZE: usize = 2000 * 1024; // 2MB
 
 pub fn init_heap(
     mapper: &mut impl Mapper<Size4KiB>,
@@ -45,19 +45,15 @@ pub fn init_heap(
 }
 
 /// A wrapper around spin::Mutex to permit trait implementations.
-pub struct Locked<A> {
-    inner: spin::Mutex<A>,
-}
+pub struct Lock<A>(Mutex<A>);
 
-impl<A> Locked<A> {
+impl<A> Lock<A> {
     pub const fn new(inner: A) -> Self {
-        Locked {
-            inner: spin::Mutex::new(inner),
-        }
+        Lock(Mutex::new(inner))
     }
 
-    pub fn lock(&self) -> spin::MutexGuard<A> {
-        self.inner.lock()
+    pub fn lock(&self) -> MutexGuard<A> {
+        self.0.lock()
     }
 }
 

@@ -1,12 +1,11 @@
 #![no_std]
 #![cfg_attr(test, no_main)]
-
 #![feature(abi_x86_interrupt)]
 #![feature(alloc_error_handler)]
 #![feature(custom_test_frameworks)]
 #![feature(const_mut_refs)]
+#![allow(incomplete_features)]
 #![feature(const_generics)]
-
 #![test_runner(crate::test_runner)]
 #![reexport_test_harness_main = "test_main"]
 
@@ -16,12 +15,10 @@ use core::panic::PanicInfo;
 
 pub mod allocator;
 pub mod drivers;
-pub mod gdt;
-pub mod interrupts;
-pub mod memory;
 
 #[cfg(test)]
 use bootloader::{entry_point, BootInfo};
+use crate::drivers::interrupts::{gdt, interrupts};
 
 #[cfg(test)]
 entry_point!(test_kernel_main);
@@ -58,7 +55,7 @@ pub fn hlt_loop() -> ! {
 }
 
 pub trait Testable {
-    fn run(&self) -> ();
+    fn run(&self);
 }
 
 impl<T> Testable for T

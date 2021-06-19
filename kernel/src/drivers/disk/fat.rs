@@ -1,13 +1,18 @@
-use fatfs::{FileSystem, DefaultTimeProvider, LossyOemCpConverter};
 use crate::drivers::disk::ata_pio::AtaDrive;
+use fatfs::{DefaultTimeProvider, FileSystem, LossyOemCpConverter};
 
 pub type FatFs = FileSystem<AtaDrive, DefaultTimeProvider, LossyOemCpConverter>;
 
+/// Treat a given block device as a FAT filesystem.
+///
+/// # Safety
+/// This function will panic if the given block device is not FAT-formatted.
 pub fn fat_from_ata(ata: AtaDrive) -> FatFs {
     FatFs::new(ata, fatfs::FsOptions::new()).expect("Failed to create FAT fs")
 }
 
+/// Treat the secondary block device attached to the primary controller as a FAT filesystem.
 pub fn fat_from_secondary() -> FatFs {
-    let secondary = AtaDrive::new(0x1F0, 0x3F6);
+    let secondary = unsafe { AtaDrive::new(0x1F0, 0x3F6) };
     fat_from_ata(secondary)
 }

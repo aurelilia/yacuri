@@ -1,8 +1,9 @@
 use bootloader::bootinfo::{MemoryMap, MemoryRegionType};
-use x86_64::structures::paging::{FrameAllocator, OffsetPageTable, PhysFrame, Size4KiB};
 use x86_64::{
     registers::control::Cr3,
-    structures::paging::{page_table::FrameError, PageTable},
+    structures::paging::{
+        FrameAllocator, OffsetPageTable, PageTable, PhysFrame, Size4KiB,
+    },
     PhysAddr, VirtAddr,
 };
 
@@ -15,6 +16,7 @@ pub struct BootInfoFrameAllocator {
 impl BootInfoFrameAllocator {
     /// Create a FrameAllocator from the passed memory map.
     ///
+    /// # Safety
     /// This function is unsafe because the caller must guarantee that the passed
     /// memory map is valid. The main requirement is that all frames that are marked
     /// as `USABLE` in it are really unused.
@@ -49,9 +51,9 @@ unsafe impl FrameAllocator<Size4KiB> for BootInfoFrameAllocator {
 
 /// Initialize a new OffsetPageTable.
 ///
-/// This function is unsafe because the caller must guarantee that the
-/// complete physical memory is mapped to virtual memory at the passed
-/// `physical_memory_offset`. Also, this function must be only called once
+/// # Safety
+/// The caller must guarantee that the complete physical memory is mapped to virtual memory at 
+/// the passed `physical_memory_offset`. Also, this function must be only called once
 /// to avoid aliasing `&mut` references (which is undefined behavior).
 pub unsafe fn init(physical_memory_offset: VirtAddr) -> OffsetPageTable<'static> {
     let level_4_table = active_level_4_table(physical_memory_offset);
@@ -60,9 +62,9 @@ pub unsafe fn init(physical_memory_offset: VirtAddr) -> OffsetPageTable<'static>
 
 /// Returns a mutable reference to the active level 4 table.
 ///
-/// This function is unsafe because the caller must guarantee that the
-/// complete physical memory is mapped to virtual memory at the passed
-/// `physical_memory_offset`. Also, this function must be only called once
+/// # Safety
+/// The caller must guarantee that the complete physical memory is mapped to virtual memory at 
+/// the passed `physical_memory_offset`. Also, this function must be only called once
 /// to avoid aliasing `&mut` references (which is undefined behavior).
 unsafe fn active_level_4_table(physical_memory_offset: VirtAddr) -> &'static mut PageTable {
     let (level_4_table_frame, _) = Cr3::read();

@@ -1,10 +1,12 @@
-use crate::{drivers::vga_buffer, gdt, hlt_loop, print, println};
+use crate::{drivers::{interrupts::gdt, vga_buffer}, hlt_loop, print, println};
 use lazy_static::lazy_static;
 use pc_keyboard::{layouts, DecodedKey, HandleControl, KeyCode, Keyboard, ScancodeSet1};
 use pic8259::ChainedPics;
 use spin::Mutex;
-use x86_64::instructions::port::Port;
-use x86_64::structures::idt::{InterruptDescriptorTable, InterruptStackFrame, PageFaultErrorCode, HandlerFunc};
+use x86_64::{
+    instructions::port::Port,
+    structures::idt::{InterruptDescriptorTable, InterruptStackFrame, PageFaultErrorCode},
+};
 
 pub const PIC_1_OFFSET: u8 = 32;
 pub const PIC_2_OFFSET: u8 = PIC_1_OFFSET + 8;
@@ -28,21 +30,34 @@ lazy_static! {
         idt[InterruptIndex::Timer.as_usize()].set_handler_fn(timer_interrupt_handler);
         idt[InterruptIndex::Keyboard.as_usize()].set_handler_fn(keyboard_interrupt_handler);
 
-        idt.divide_error.set_handler_fn(generic_fault::<"DIVIDE ERROR">);
+        idt.divide_error
+            .set_handler_fn(generic_fault::<"DIVIDE ERROR">);
         idt.debug.set_handler_fn(generic_fault::<"DEBUG">);
-        idt.non_maskable_interrupt.set_handler_fn(generic_fault::<"NON MASKABLE INTERRUPT">);
+        idt.non_maskable_interrupt
+            .set_handler_fn(generic_fault::<"NON MASKABLE INTERRUPT">);
         idt.overflow.set_handler_fn(generic_fault::<"OVERFLOW">);
-        idt.bound_range_exceeded.set_handler_fn(generic_fault::<"BOUND RANGE EXCEEDED">);
-        idt.invalid_opcode.set_handler_fn(generic_fault::<"INVALID OPCODE">);
-        idt.device_not_available.set_handler_fn(generic_fault::<"DEVICE NOT AVAILABLE">);
-        idt.invalid_tss.set_handler_fn(generic_fault_code::<"INVALID TSS">);
-        idt.segment_not_present.set_handler_fn(generic_fault_code::<"SEGMENT NOT PRESENT">);
-        idt.stack_segment_fault.set_handler_fn(generic_fault_code::<"STACK SEGMENT FAULT">);
-        idt.general_protection_fault.set_handler_fn(generic_fault_code::<"GENERAL PROTECTION FAULT">);
-        idt.alignment_check.set_handler_fn(generic_fault_code::<"ALIGNMENT CHECK">);
-        idt.simd_floating_point.set_handler_fn(generic_fault::<"SIMD FLOATING POINT">);
-        idt.virtualization.set_handler_fn(generic_fault::<"VIRTUALIZATION">);
-        idt.security_exception.set_handler_fn(generic_fault_code::<"SECURITY EXCEPTION">);
+        idt.bound_range_exceeded
+            .set_handler_fn(generic_fault::<"BOUND RANGE EXCEEDED">);
+        idt.invalid_opcode
+            .set_handler_fn(generic_fault::<"INVALID OPCODE">);
+        idt.device_not_available
+            .set_handler_fn(generic_fault::<"DEVICE NOT AVAILABLE">);
+        idt.invalid_tss
+            .set_handler_fn(generic_fault_code::<"INVALID TSS">);
+        idt.segment_not_present
+            .set_handler_fn(generic_fault_code::<"SEGMENT NOT PRESENT">);
+        idt.stack_segment_fault
+            .set_handler_fn(generic_fault_code::<"STACK SEGMENT FAULT">);
+        idt.general_protection_fault
+            .set_handler_fn(generic_fault_code::<"GENERAL PROTECTION FAULT">);
+        idt.alignment_check
+            .set_handler_fn(generic_fault_code::<"ALIGNMENT CHECK">);
+        idt.simd_floating_point
+            .set_handler_fn(generic_fault::<"SIMD FLOATING POINT">);
+        idt.virtualization
+            .set_handler_fn(generic_fault::<"VIRTUALIZATION">);
+        idt.security_exception
+            .set_handler_fn(generic_fault_code::<"SECURITY EXCEPTION">);
 
         idt
     };
@@ -69,10 +84,15 @@ pub fn init_idt() {
     IDT.load();
 }
 
-extern "x86-interrupt" fn generic_fault<const NAME: &'static str>(stack_frame: InterruptStackFrame) {
+extern "x86-interrupt" fn generic_fault<const NAME: &'static str>(
+    stack_frame: InterruptStackFrame,
+) {
     println!("EXCEPTION: {}\n{:#?}", NAME, stack_frame);
 }
-extern "x86-interrupt" fn generic_fault_code<const NAME: &'static str>(stack_frame: InterruptStackFrame, code: u64) {
+extern "x86-interrupt" fn generic_fault_code<const NAME: &'static str>(
+    stack_frame: InterruptStackFrame,
+    code: u64,
+) {
     println!("EXCEPTION: {}\n{:#?}\nCODE: {}", NAME, stack_frame, code);
 }
 

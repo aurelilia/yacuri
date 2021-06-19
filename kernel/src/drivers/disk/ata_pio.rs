@@ -1,16 +1,11 @@
+use fatfs::{IoBase, Read, Seek, SeekFrom, Write};
 use x86_64::instructions::port::Port;
-use fatfs::{Read, IoBase, Write, Seek, SeekFrom};
-use crate::drivers::disk::ata_pio::IoPort::Status;
-use crate::{serial_println, println};
 
 #[repr(u8)]
 #[derive(Copy, Clone)]
 enum StatusBits {
-    BSY = 0x80,
-    RDY = 0x40,
-    DRQ = 0x08,
-    DF = 0x20,
-    ERR = 0x01,
+    Busy = 0x80,
+    RwReady = 0x08,
 }
 
 impl StatusBits {
@@ -23,10 +18,11 @@ impl StatusBits {
 enum Command {
     Read = 0x20,
     Write = 0x30,
-    CacheFlush = 0xE7
+    CacheFlush = 0xE7,
 }
 
 #[repr(C)]
+#[allow(dead_code)]
 enum IoPort {
     Data,
     ErrFeatures,
@@ -41,9 +37,12 @@ enum IoPort {
 #[repr(C)]
 enum ControlPort {
     Status,
-    Address,
 }
 
+type Sector = [u16; 256];
+
+/// Represents an attached ATA PIO drive.
+/// The secondary drive of the main ATA controller is used.
 pub struct AtaDrive {
     io_base: u16,
     control_base: u16,
@@ -51,9 +50,10 @@ pub struct AtaDrive {
 }
 
 impl AtaDrive {
+    /// Setup the controller to perform a read or write at the current position.
     fn before_read_write(&self, sector_count: u8) {
         let lba = self.calc_lba();
-        self.wait_status(StatusBits::BSY, false);
+        self.wait_status(StatusBits::Busy, false);
         self.io_write(IoPort::DriveSel, (0xF0 | ((lba >> 24) & 0xF)) as u8);
         self.io_write(IoPort::SectorCount, sector_count);
         self.io_write(IoPort::LbaLow, lba as u8);
@@ -61,7 +61,16 @@ impl AtaDrive {
         self.io_write(IoPort::LbaHigh, (lba >> 16) as u8);
     }
 
-    fn get_partial_write_sectors(&mut self, len: usize) -> (Option<[u16; 256]>, Option<[u16; 256]>) {
+    /// Returns the start and end sectors if a write, starting at the
+    /// current position and being `len` bytes long, would cause
+    /// the write to only partially write sectors.
+    /// This is required, since PIO only allows writing entire sectors at a time;
+    /// we read the sectors affected and 'write' back that read data
+    /// in places where it shouldn't change.
+    fn get_partial_write_sectors(
+        &mut self,
+        len: usize,
+    ) -> (Option<Sector>, Option<Sector>) {
         let start = self.read_sector_if_unaligned();
         self.position += len;
         let end = self.read_sector_if_unaligned();
@@ -69,7 +78,9 @@ impl AtaDrive {
         (start, end)
     }
 
-    fn read_sector_if_unaligned(&self) -> Option<[u16; 256]> {
+    /// Convenience function that reads the current sector if
+    /// the current position is not aligned to the start of it, see above.
+    fn read_sector_if_unaligned(&self) -> Option<Sector> {
         if !self.pos_aligned() {
             Some(self.read_sector())
         } else {
@@ -77,58 +88,71 @@ impl AtaDrive {
         }
     }
 
-    fn read_sector(&self) -> [u16; 256] {
+    /// Read the current sector that contains `self.position`.
+    fn read_sector(&self) -> Sector {
         self.before_read_write(1);
         self.send_command(Command::Read);
 
         let mut data_port = self.io_port_16(IoPort::Data);
         let mut buf = [0; 256];
         self.wait_ready();
-        for word in 0..256 {
-            let read = unsafe { data_port.read() };
-            buf[word] = read;
+        for word in &mut buf {
+            *word = unsafe { data_port.read() };
         }
         buf
     }
 
+    /// Wait until the drive is ready for a sector read/write.
     fn wait_ready(&self) {
-        self.wait_status(StatusBits::BSY, false);
-        self.wait_status(StatusBits::DRQ, true);
+        self.wait_status(StatusBits::Busy, false);
+        self.wait_status(StatusBits::RwReady, true);
     }
 
+    /// Wait until a status bit reaches the given state.
     fn wait_status(&self, status: StatusBits, until: bool) {
         let mut port = self.io_port(IoPort::Status);
         while status.is_set(unsafe { port.read() }) != until {}
     }
 
+    /// Calculate the value of `LBA` (sector index) for the current position.
     fn calc_lba(&self) -> usize {
         (self.position / 512) as usize
     }
 
+    /// Send a command on the status/command IO port.
     fn send_command(&self, command: Command) {
         self.io_write(IoPort::Status, command as u8);
     }
 
+    /// Read the given port.
     fn io_read(&self, io_port: IoPort) -> u8 {
         unsafe { self.io_port(io_port).read() }
     }
 
+    /// Write the given value to the given port.
     fn io_write(&self, io_port: IoPort, value: u8) {
-        unsafe { self.io_port(io_port).write(value); }
+        unsafe {
+            self.io_port(io_port).write(value);
+        }
     }
 
+    /// Returns the given port as r/w.
     fn io_port(&self, io_port: IoPort) -> Port<u8> {
         Port::new(self.io_base + io_port as u16)
     }
 
+    /// Returns the given port with 16-bit sized values.
     fn io_port_16(&self, io_port: IoPort) -> Port<u16> {
         Port::new(self.io_base + io_port as u16)
     }
 
+    /// Returns the given port.
     fn con_port(&self, control_port: ControlPort) -> Port<u8> {
         Port::new(self.control_base + control_port as u16)
     }
 
+    /// Calculate the amount of sectors to be read/written when
+    /// doing an operation starting at `self.current` of size `len`.
     fn min_required_sector_count(&self, bytes: usize) -> u8 {
         let sector_aligned = Self::is_sector_aligned(bytes) && bytes != 0;
         let bleeds_into_next = if sector_aligned {
@@ -139,15 +163,23 @@ impl AtaDrive {
         ((bytes / 512) as u8) + bleeds_into_next as u8 + !sector_aligned as u8
     }
 
+    /// Is `self.position` aligned on the start of a sector?
     fn pos_aligned(&self) -> bool {
         Self::is_sector_aligned(self.position as usize)
     }
 
+    /// Is `value` aligned on the start of a sector?
     fn is_sector_aligned(value: usize) -> bool {
         value & 511 == 0
     }
 
-    pub fn new(io_base: u16, control_base: u16) -> AtaDrive {
+    /// Create a new AtaDrive.
+    ///
+    /// # Safety
+    /// The caller must ensure `io_base` and `control_base` are valid
+    /// ports for an ATA controller.
+    /// The ports for the primary controller are usually `0x1F0` and `0x3F6`.
+    pub unsafe fn new(io_base: u16, control_base: u16) -> AtaDrive {
         let bus = AtaDrive {
             io_base,
             control_base,
@@ -156,6 +188,10 @@ impl AtaDrive {
 
         // 0xFF = illegal value / floating bus, no drive attached
         assert_ne!(bus.io_read(IoPort::Status), 0xFF);
+        // Clear control/status register, should do on init
+        // https://wiki.osdev.org/ATA_PIO_Mode#Device_Control_Register_.28Control_base_.2B_0.29
+        bus.con_port(ControlPort::Status).write(0);
+
         bus
     }
 }
@@ -189,7 +225,7 @@ impl Read for AtaDrive {
                         buf[i + 1] = (read >> 8) as u8;
                     }
                     _ if index < buf_len => buf[i] = read as u8,
-                    _ => ()
+                    _ => (),
                 }
             }
         }
@@ -216,11 +252,13 @@ impl Write for AtaDrive {
                 let buf_len = buf.len() as i64;
 
                 let to_write = match () {
-                    _ if index == -1 => (start_sector.unwrap()[word] & 255) + ((buf[0] as u16) << 8),
+                    _ if index == -1 => {
+                        (start_sector.unwrap()[word] & 255) + ((buf[0] as u16) << 8)
+                    }
                     _ if index < -1 => start_sector.unwrap()[word],
                     _ if (index + 1) < buf_len => buf[i] as u16 + ((buf[i + 1] as u16) << 8),
                     _ if index < buf_len => buf[i] as u16 + (end_sector.unwrap()[word] & 0xFF00),
-                    _ => end_sector.unwrap()[word]
+                    _ => end_sector.unwrap()[word],
                 };
                 unsafe { data_port.write(to_write) }
             }
@@ -245,7 +283,7 @@ impl Seek for AtaDrive {
             }
 
             SeekFrom::Current(by) => {
-                let res = (self.position as i64 + by);
+                let res = self.position as i64 + by;
                 if res >= 0 {
                     self.position = res as usize;
                     Ok(self.position as u64)
@@ -254,7 +292,7 @@ impl Seek for AtaDrive {
                 }
             }
 
-            _ => Err(())
+            _ => Err(()),
         }
     }
 }
@@ -262,15 +300,13 @@ impl Seek for AtaDrive {
 #[cfg(test)]
 mod tests {
     use super::AtaDrive;
-    use crate::serial_println;
-    use fatfs::{Seek, SeekFrom, Read, Write};
-    use spin::{Mutex, MutexGuard};
+    use fatfs::{Read, Seek, SeekFrom, Write};
     use lazy_static::lazy_static;
-    use rand::rngs::SmallRng;
-    use rand::{SeedableRng, RngCore};
+    use rand::{rngs::SmallRng, RngCore, SeedableRng};
+    use spin::{Mutex, MutexGuard};
 
     // 64KiB drive read from disk, this is what AtaBus should return.
-    static ACTUAL: &'static [u8; 1024 * 64] = include_bytes!("test_drive.bin");
+    static ACTUAL: &[u8; 1024 * 64] = include_bytes!("test_drive.bin");
     // The bus used for all tests.
     lazy_static! {
         pub static ref BUS: Mutex<AtaDrive> = Mutex::new(AtaDrive::new(0x1F0, 0x3F6));
@@ -379,7 +415,7 @@ mod tests {
 
     #[test_case]
     fn write_multiple_sectors() {
-        write_verify::<2048>(1, 096789)
+        write_verify::<2048>(1, 96789)
     }
 
     #[test_case]

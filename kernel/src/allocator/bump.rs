@@ -1,4 +1,4 @@
-use super::{align_up, Locked};
+use super::{align_up, Lock};
 use alloc::alloc::{GlobalAlloc, Layout};
 use core::ptr;
 
@@ -22,6 +22,7 @@ impl BumpAllocator {
 
     /// Initializes the bump allocator with the given heap bounds.
     ///
+    /// # Safety
     /// This method is unsafe because the caller must ensure that the given
     /// memory range is unused. Also, this method must be called only once.
     pub unsafe fn init(&mut self, heap_start: usize, heap_size: usize) {
@@ -31,9 +32,9 @@ impl BumpAllocator {
     }
 }
 
-unsafe impl GlobalAlloc for Locked<BumpAllocator> {
+unsafe impl GlobalAlloc for Lock<BumpAllocator> {
     unsafe fn alloc(&self, layout: Layout) -> *mut u8 {
-        let mut bump = self.lock(); // get a mutable reference
+        let mut bump = self.lock();
 
         let alloc_start = align_up(bump.next, layout.align());
         let alloc_end = match alloc_start.checked_add(layout.size()) {
@@ -51,8 +52,7 @@ unsafe impl GlobalAlloc for Locked<BumpAllocator> {
     }
 
     unsafe fn dealloc(&self, _ptr: *mut u8, _layout: Layout) {
-        let mut bump = self.lock(); // get a mutable reference
-
+        let mut bump = self.lock();
         bump.allocations -= 1;
         if bump.allocations == 0 {
             bump.next = bump.heap_start;

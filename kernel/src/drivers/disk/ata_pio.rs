@@ -44,13 +44,13 @@ enum ControlPort {
     Address,
 }
 
-pub struct AtaBus {
+pub struct AtaDrive {
     io_base: u16,
     control_base: u16,
     position: usize,
 }
 
-impl AtaBus {
+impl AtaDrive {
     fn before_read_write(&self, sector_count: u8) {
         let lba = self.calc_lba();
         self.wait_status(StatusBits::BSY, false);
@@ -147,8 +147,8 @@ impl AtaBus {
         value & 511 == 0
     }
 
-    pub fn new(io_base: u16, control_base: u16) -> AtaBus {
-        let bus = AtaBus {
+    pub fn new(io_base: u16, control_base: u16) -> AtaDrive {
+        let bus = AtaDrive {
             io_base,
             control_base,
             position: 0,
@@ -160,11 +160,11 @@ impl AtaBus {
     }
 }
 
-impl IoBase for AtaBus {
+impl IoBase for AtaDrive {
     type Error = ();
 }
 
-impl Read for AtaBus {
+impl Read for AtaDrive {
     fn read(&mut self, buf: &mut [u8]) -> Result<usize, Self::Error> {
         let sector_count = self.min_required_sector_count(buf.len());
         self.before_read_write(sector_count);
@@ -178,14 +178,18 @@ impl Read for AtaBus {
                 let read = unsafe { data_port.read() };
 
                 let index: i64 = (((sector as i64 * 256) + word) * 2) - sector_offset;
-                if index < 0 {
-                    continue
-                }
-                let index = index as usize;
+                let i = index as usize;
+                let buf_len = buf.len() as i64;
 
-                if index < buf.len()   {
-                    buf[index] = read as u8;
-                    buf[index + 1] = (read >> 8) as u8;
+                match () {
+                    _ if index == -1 => buf[0] = (read >> 8) as u8,
+                    _ if index < -1 => (),
+                    _ if (index + 1) < buf_len => {
+                        buf[i] = read as u8;
+                        buf[i + 1] = (read >> 8) as u8;
+                    }
+                    _ if index < buf_len => buf[i] = read as u8,
+                    _ => ()
                 }
             }
         }
@@ -195,7 +199,7 @@ impl Read for AtaBus {
     }
 }
 
-impl Write for AtaBus {
+impl Write for AtaDrive {
     fn write(&mut self, buf: &[u8]) -> Result<usize, Self::Error> {
         let sector_count = self.min_required_sector_count(buf.len());
         let (start_sector, end_sector) = self.get_partial_write_sectors(buf.len());
@@ -208,17 +212,17 @@ impl Write for AtaBus {
             self.wait_ready();
             for word in 0..256usize {
                 let index: i64 = (((sector as i64 * 256) + word as i64) * 2) - sector_offset;
-                match () {
-                    _ if index < 0 => unsafe { data_port.write(start_sector.unwrap()[word]) }
+                let i = index as usize;
+                let buf_len = buf.len() as i64;
 
-                    _ if index >= buf.len() as i64 => unsafe { data_port.write(end_sector.unwrap()[word]) }
-
-                    _ => unsafe {
-                        let index = index as usize;
-                        let value = buf[index] as u16 + ((buf[index + 1] as u16) << 8);
-                        data_port.write(value)
-                    }
-                }
+                let to_write = match () {
+                    _ if index == -1 => (start_sector.unwrap()[word] & 255) + ((buf[0] as u16) << 8),
+                    _ if index < -1 => start_sector.unwrap()[word],
+                    _ if (index + 1) < buf_len => buf[i] as u16 + ((buf[i + 1] as u16) << 8),
+                    _ if index < buf_len => buf[i] as u16 + (end_sector.unwrap()[word] & 0xFF00),
+                    _ => end_sector.unwrap()[word]
+                };
+                unsafe { data_port.write(to_write) }
             }
         }
 
@@ -232,7 +236,7 @@ impl Write for AtaBus {
     }
 }
 
-impl Seek for AtaBus {
+impl Seek for AtaDrive {
     fn seek(&mut self, pos: SeekFrom) -> Result<u64, Self::Error> {
         match pos {
             SeekFrom::Start(pos) => {
@@ -257,7 +261,7 @@ impl Seek for AtaBus {
 
 #[cfg(test)]
 mod tests {
-    use super::AtaBus;
+    use super::AtaDrive;
     use crate::serial_println;
     use fatfs::{Seek, SeekFrom, Read, Write};
     use spin::{Mutex, MutexGuard};
@@ -269,7 +273,7 @@ mod tests {
     static ACTUAL: &'static [u8; 1024 * 64] = include_bytes!("test_drive.bin");
     // The bus used for all tests.
     lazy_static! {
-        pub static ref BUS: Mutex<AtaBus> = Mutex::new(AtaBus::new(0x1F0, 0x3F6));
+        pub static ref BUS: Mutex<AtaDrive> = Mutex::new(AtaDrive::new(0x1F0, 0x3F6));
     }
 
     #[test_case]
@@ -291,12 +295,14 @@ mod tests {
     #[test_case]
     fn correct_sector_count() {
         let mut bus = init();
+        assert_eq!(bus.min_required_sector_count(3), 1);
         assert_eq!(bus.min_required_sector_count(200), 1);
         assert_eq!(bus.min_required_sector_count(512), 1);
         assert_eq!(bus.min_required_sector_count(513), 2);
         assert_eq!(bus.min_required_sector_count(2000), 4);
 
         bus.seek(SeekFrom::Start(200));
+        assert_eq!(bus.min_required_sector_count(3), 1);
         assert_eq!(bus.min_required_sector_count(200), 1);
         assert_eq!(bus.min_required_sector_count(512), 2);
         assert_eq!(bus.min_required_sector_count(513), 2);
@@ -333,6 +339,12 @@ mod tests {
         read_count::<200>(10)
     }
 
+    #[test_case]
+    fn read_uneven() {
+        read_count::<3>(10);
+        read_count::<201>(10)
+    }
+
     fn read_count<const COUNT: usize>(repetitions: usize) {
         let mut bus = init();
         let mut buf = [0; COUNT];
@@ -351,7 +363,6 @@ mod tests {
         let mut write_buf = [35; 100];
         let mut verify_buf = [0; 512];
 
-        serial_println!("{:?}", write_buf);
         bus.seek(SeekFrom::Start(100));
         bus.write(&write_buf);
         bus.seek(SeekFrom::Start(0));
@@ -391,6 +402,12 @@ mod tests {
         write_verify::<200>(10, 20)
     }
 
+    #[test_case]
+    fn write_uneven() {
+        write_verify::<3>(10, 123);
+        write_verify::<201>(10, 12123)
+    }
+
     fn write_verify<const COUNT: usize>(repetitions: usize, seed: u64) {
         let mut bus = init();
         let mut rng = SmallRng::seed_from_u64(seed);
@@ -409,8 +426,8 @@ mod tests {
         }
     }
 
-    fn init() -> MutexGuard<'static, AtaBus> {
-        let mut bus: MutexGuard<AtaBus> = BUS.lock();
+    fn init() -> MutexGuard<'static, AtaDrive> {
+        let mut bus: MutexGuard<AtaDrive> = BUS.lock();
         bus.seek(SeekFrom::Start(0));
         bus
     }

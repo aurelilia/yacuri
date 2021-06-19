@@ -9,11 +9,12 @@ extern crate alloc;
 use bootloader::{entry_point, BootInfo};
 use core::panic::PanicInfo;
 use yacuri::{hlt_loop, print, println, allocator, memory};
-use yacuri::drivers::disk::ata_pio::AtaBus;
-use fatfs::Read;
+use yacuri::drivers::disk::ata_pio::AtaDrive;
+use fatfs::{Read, Write};
 use alloc::boxed::Box;
 use x86_64::VirtAddr;
 use yacuri::memory::BootInfoFrameAllocator;
+use yacuri::drivers::disk::fat::{fat_from_ata, fat_from_secondary};
 
 entry_point!(kernel_main);
 
@@ -23,14 +24,21 @@ fn kernel_main(boot_info: &'static BootInfo) -> ! {
     yacuri::init();
     init_memory(boot_info);
 
-    let mut blockdev = AtaBus::new(0x1F0, 0x3F6);
-    let mut buf = Box::new([1; 16]);
-    blockdev.read(&mut *buf);
+    let fs = fat_from_secondary();
+    {
+        let root_dir = fs.root_dir();
+        root_dir.create_dir("helloWorld").unwrap();
+        let mut file = root_dir.create_file("helloWorld/yay").unwrap();
+        file.truncate().unwrap();
+        file.write_all(b"you did it!");
 
-    println!("\n\n\n");
-    for val in buf.iter() {
-        println!("{:#02X}  ", val);
+        let dir = root_dir.open_dir("helloWorld").unwrap();
+        for r in dir.iter() {
+            let entry = r.unwrap();
+            println!("{}", entry.file_name());
+        }
     }
+    fs.unmount().unwrap();
 
     #[cfg(test)]
     test_main();

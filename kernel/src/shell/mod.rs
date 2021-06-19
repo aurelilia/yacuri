@@ -67,7 +67,7 @@ impl Shell {
 
     fn enter_pressed(&mut self) {
         vga_buffer(|w| w.set_color(Color::Yellow));
-        println!("{}", self.current_command);
+        println!("> {}", self.current_command);
         vga_buffer(|w| w.reset_color());
 
         let command = Command::from(&self.current_command);

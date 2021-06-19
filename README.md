@@ -8,8 +8,8 @@ Currently *very very* early, basing most of early dev on [this great blog series
 
 ```bash 
 # Execute in QEMU
-cargo run
+cd kernel; cargo run
 
 # Run tests
-cargo test
+cd kernel; cargo test
 ```

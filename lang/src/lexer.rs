@@ -1,5 +1,4 @@
 pub use logos::{Logos, Span};
-pub use token::Token;
 
 pub struct Lexer<'l> {
     logos: logos::Lexer<'l, Token>,

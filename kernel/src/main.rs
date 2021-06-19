@@ -6,11 +6,9 @@
 
 extern crate alloc;
 
-mod vga_buffer;
-
 use bootloader::{entry_point, BootInfo};
 use core::panic::PanicInfo;
-use yacuri::hlt_loop;
+use yacuri::{hlt_loop, println, print};
 
 entry_point!(kernel_main);
 

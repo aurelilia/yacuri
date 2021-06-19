@@ -1,4 +1,4 @@
-use crate::{gdt, hlt_loop, print, println, vga_buffer};
+use crate::{gdt, hlt_loop, print, println, drivers::vga_buffer};
 use lazy_static::lazy_static;
 use pc_keyboard::{layouts, DecodedKey, HandleControl, KeyCode, Keyboard, ScancodeSet1};
 use pic8259::ChainedPics;

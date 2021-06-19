@@ -1,12 +1,12 @@
 [package]
-name = "yacuri-kernel"
+name = "yacuri"
 version = "0.1.0"
 authors = ["Ellie Ang. <git@angm.xyz>"]
 edition = "2018"
 
 
 [dependencies]
-yacuri-lang = { path = "../lang" }
+yacuri_lang = { path = "../lang", default-features = false }
 
 bootloader = { version = "0.9.8", features = ["map_physical_memory"]}
 spin = "0.5.2"

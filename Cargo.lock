@@ -200,7 +200,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "yacuri-kernel"
+name = "yacuri"
 version = "0.1.0"
 dependencies = [
  "bootloader",
@@ -212,11 +212,11 @@ dependencies = [
  "uart_16550",
  "volatile 0.2.7",
  "x86_64",
- "yacuri-lang",
+ "yacuri_lang",
 ]
 
 [[package]]
-name = "yacuri-lang"
+name = "yacuri_lang"
 version = "0.1.0"
 dependencies = [
  "logos",

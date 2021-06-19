@@ -1,5 +1,5 @@
 [package]
-name = "yacuri-lang"
+name = "yacuri_lang"
 version = "0.1.0"
 authors = ["Ellie Ang. <git@angm.xyz>"]
 edition = "2018"
@@ -8,3 +8,8 @@ edition = "2018"
 [dependencies]
 # Enable no_std support (disable std feature)
 logos = { version = "0.12.0", default-features = false, features = ["export_derive"] }
+
+
+[features]
+default = ["std"]
+std = []

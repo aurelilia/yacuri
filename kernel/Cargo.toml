@@ -24,6 +24,11 @@ rev = "d0ed1b776bc24b3ef5e76b0335c90d2bd4d6d2b1"
 features = ["unicode", "lfn", "alloc"]
 default-features = false
 
+
+[dev-dependencies]
+rand = {version = "0.8.4", default-features = false, features = ["small_rng"] }
+
+
 [[test]]
 name = "should_panic"
 harness = false
@@ -37,7 +42,9 @@ run-args = [
     "-drive", "format=raw,file=fs.bin"
 ]
 test-args = [
-    "-device", "isa-debug-exit,iobase=0xf4,iosize=0x04", "-serial", "stdio",
+    "-device", "isa-debug-exit,iobase=0xf4,iosize=0x04",
+    "-serial", "stdio",
+    "-drive", "format=raw,file=src/drivers/disk/test_drive.bin",
     "-display", "none"
 ]
 test-success-exit-code = 33         # (0x10 << 1) | 1

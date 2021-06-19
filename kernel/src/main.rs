@@ -24,9 +24,13 @@ fn kernel_main(boot_info: &'static BootInfo) -> ! {
     init_memory(boot_info);
 
     let mut blockdev = AtaBus::new(0x1F0, 0x3F6);
-    let mut buf = Box::new([1; 512]);
+    let mut buf = Box::new([1; 16]);
     blockdev.read(&mut *buf);
-    println!("{:?}", buf[0]);
+
+    println!("\n\n\n");
+    for val in buf.iter() {
+        println!("{:#02X}  ", val);
+    }
 
     #[cfg(test)]
     test_main();

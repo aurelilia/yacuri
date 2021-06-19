@@ -67,10 +67,7 @@ impl AtaDrive {
     /// This is required, since PIO only allows writing entire sectors at a time;
     /// we read the sectors affected and 'write' back that read data
     /// in places where it shouldn't change.
-    fn get_partial_write_sectors(
-        &mut self,
-        len: usize,
-    ) -> (Option<Sector>, Option<Sector>) {
+    fn get_partial_write_sectors(&mut self, len: usize) -> (Option<Sector>, Option<Sector>) {
         let start = self.read_sector_if_unaligned();
         self.position += len;
         let end = self.read_sector_if_unaligned();

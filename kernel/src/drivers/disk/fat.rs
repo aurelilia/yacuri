@@ -1,13 +1,17 @@
 use crate::drivers::disk::ata_pio::AtaDrive;
-use fatfs::{DefaultTimeProvider, FileSystem, LossyOemCpConverter};
+use fatfs::{DefaultTimeProvider, Dir, FileSystem, LossyOemCpConverter};
+use lazy_static::lazy_static;
+use spin::Mutex;
 
 pub type FatFs = FileSystem<AtaDrive, DefaultTimeProvider, LossyOemCpConverter>;
+pub type FatDir<'d> = Dir<'d, AtaDrive, DefaultTimeProvider, LossyOemCpConverter>;
 
 /// Treat a given block device as a FAT filesystem.
 ///
 /// # Safety
 /// This function will panic if the given block device is not FAT-formatted.
-pub fn fat_from_ata(ata: AtaDrive) -> FatFs {
+/// It should only be called once.
+fn fat_from_ata(ata: AtaDrive) -> FatFs {
     FatFs::new(ata, fatfs::FsOptions::new()).expect("Failed to create FAT fs")
 }
 

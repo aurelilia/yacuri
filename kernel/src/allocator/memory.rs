@@ -1,9 +1,7 @@
 use bootloader::bootinfo::{MemoryMap, MemoryRegionType};
 use x86_64::{
     registers::control::Cr3,
-    structures::paging::{
-        FrameAllocator, OffsetPageTable, PageTable, PhysFrame, Size4KiB,
-    },
+    structures::paging::{FrameAllocator, OffsetPageTable, PageTable, PhysFrame, Size4KiB},
     PhysAddr, VirtAddr,
 };
 
@@ -52,7 +50,7 @@ unsafe impl FrameAllocator<Size4KiB> for BootInfoFrameAllocator {
 /// Initialize a new OffsetPageTable.
 ///
 /// # Safety
-/// The caller must guarantee that the complete physical memory is mapped to virtual memory at 
+/// The caller must guarantee that the complete physical memory is mapped to virtual memory at
 /// the passed `physical_memory_offset`. Also, this function must be only called once
 /// to avoid aliasing `&mut` references (which is undefined behavior).
 pub unsafe fn init(physical_memory_offset: VirtAddr) -> OffsetPageTable<'static> {
@@ -63,7 +61,7 @@ pub unsafe fn init(physical_memory_offset: VirtAddr) -> OffsetPageTable<'static>
 /// Returns a mutable reference to the active level 4 table.
 ///
 /// # Safety
-/// The caller must guarantee that the complete physical memory is mapped to virtual memory at 
+/// The caller must guarantee that the complete physical memory is mapped to virtual memory at
 /// the passed `physical_memory_offset`. Also, this function must be only called once
 /// to avoid aliasing `&mut` references (which is undefined behavior).
 unsafe fn active_level_4_table(physical_memory_offset: VirtAddr) -> &'static mut PageTable {

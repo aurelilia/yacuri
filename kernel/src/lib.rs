@@ -4,6 +4,7 @@
 #![feature(alloc_error_handler)]
 #![feature(custom_test_frameworks)]
 #![feature(const_mut_refs)]
+#![feature(destructuring_assignment)]
 #![allow(incomplete_features)]
 #![feature(const_generics)]
 #![test_runner(crate::test_runner)]
@@ -15,10 +16,11 @@ use core::panic::PanicInfo;
 
 pub mod allocator;
 pub mod drivers;
+pub mod shell;
 
+use crate::drivers::interrupts::{gdt, interrupts};
 #[cfg(test)]
 use bootloader::{entry_point, BootInfo};
-use crate::drivers::interrupts::{gdt, interrupts};
 
 #[cfg(test)]
 entry_point!(test_kernel_main);

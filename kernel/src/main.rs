@@ -12,14 +12,11 @@ use fatfs::Write;
 use x86_64::VirtAddr;
 use yacuri::{
     allocator,
-    drivers::disk::{
-        fat::{fat_from_secondary},
-    },
-    hlt_loop,
-    println,
+    allocator::{memory, memory::BootInfoFrameAllocator},
+    drivers::disk::fat::fat_from_secondary,
+    hlt_loop, println,
+    shell::SHELL,
 };
-use yacuri::allocator::memory;
-use yacuri::allocator::memory::BootInfoFrameAllocator;
 
 entry_point!(kernel_main);
 
@@ -28,22 +25,7 @@ fn kernel_main(boot_info: &'static BootInfo) -> ! {
 
     yacuri::init();
     init_memory(boot_info);
-
-    let fs = fat_from_secondary();
-    {
-        let root_dir = fs.root_dir();
-        root_dir.create_dir("helloWorld").unwrap();
-        let mut file = root_dir.create_file("helloWorld/yay").unwrap();
-        file.truncate().unwrap();
-        file.write_all(b"you did it!").unwrap();
-
-        let dir = root_dir.open_dir("helloWorld").unwrap();
-        for r in dir.iter() {
-            let entry = r.unwrap();
-            println!("{}", entry.file_name());
-        }
-    }
-    fs.unmount().unwrap();
+    SHELL.lock(); // Initialize lazy_static
 
     #[cfg(test)]
     test_main();

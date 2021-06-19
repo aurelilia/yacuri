@@ -246,6 +246,7 @@ dependencies = [
  "fatfs",
  "lazy_static",
  "linked_list_allocator",
+ "logos",
  "pc-keyboard",
  "pic8259",
  "rand",

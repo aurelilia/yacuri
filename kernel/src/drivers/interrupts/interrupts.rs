@@ -1,4 +1,8 @@
-use crate::{drivers::{interrupts::gdt, vga_buffer}, hlt_loop, print, println};
+use crate::{
+    drivers::{interrupts::gdt, vga_buffer},
+    hlt_loop, print, println,
+    shell::SHELL,
+};
 use lazy_static::lazy_static;
 use pc_keyboard::{layouts, DecodedKey, HandleControl, KeyCode, Keyboard, ScancodeSet1};
 use pic8259::ChainedPics;
@@ -140,21 +144,7 @@ extern "x86-interrupt" fn keyboard_interrupt_handler(_stack_frame: InterruptStac
     let scancode: u8 = unsafe { port.read() };
     if let Ok(Some(key_event)) = keyboard.add_byte(scancode) {
         if let Some(key) = keyboard.process_keyevent(key_event) {
-            match key {
-                // Backspace
-                DecodedKey::Unicode('\x08') => vga_buffer::clear_last_char(),
-                // Tab
-                DecodedKey::Unicode('\x09') => print!("    "),
-
-                DecodedKey::Unicode(character) => print!("{}", character),
-
-                DecodedKey::RawKey(KeyCode::ArrowLeft) => vga_buffer::shift_column(-1),
-                DecodedKey::RawKey(KeyCode::ArrowRight) => vga_buffer::shift_column(1),
-                DecodedKey::RawKey(KeyCode::ArrowUp) => vga_buffer::shift_row(-1),
-                DecodedKey::RawKey(KeyCode::ArrowDown) => vga_buffer::shift_row(1),
-
-                DecodedKey::RawKey(key) => print!("{:?}", key),
-            }
+            SHELL.lock().key_pressed(key);
         }
     }
 

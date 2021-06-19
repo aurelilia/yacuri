@@ -44,6 +44,8 @@ struct ScreenChar {
 }
 
 const BUFFER_HEIGHT: usize = 25;
+const TEXT_HEIGHT: usize = BUFFER_HEIGHT - 1;
+const SHELL_ROW: usize = BUFFER_HEIGHT - 1;
 const BUFFER_WIDTH: usize = 80;
 
 #[repr(transparent)]
@@ -88,91 +90,64 @@ impl Writer {
                     ascii_character: byte,
                     color_code: self.color_code,
                 });
-                self.shift_by(1);
+                self.column_position += 1;
             }
         }
     }
 
-    fn new_line(&mut self) {
-        self.shift_rows_up(1);
-        self.column_position = 0;
-        self.update_cursor();
-    }
-
-    fn shift_rows_up(&mut self, by: usize) {
-        for row in by..BUFFER_HEIGHT {
-            for col in 0..BUFFER_WIDTH {
-                let character = self.buffer.chars[row][col].read();
-                self.buffer.chars[row - by][col].write(character);
-            }
-        }
-        for row in (BUFFER_HEIGHT - by)..BUFFER_HEIGHT {
-            self.clear_row(row)
-        }
-    }
-
-    fn remove_current_char(&mut self) {
-        self.shift_by(-1);
-        self.buffer.chars[self.row_position][self.column_position].write(ScreenChar {
-            ascii_character: b' ',
-            color_code: self.color_code,
-        });
-    }
-
-    fn shift_by(&mut self, by: isize) {
-        let res = self.column_position as isize + by;
-        if res < 0 {
-            self.row_position -= 1;
-            self.column_position = BUFFER_WIDTH - 1;
-            while self.read_at_current() == b' ' && self.column_position > 1 {
-                self.column_position -= 1;
-            }
-            self.column_position += 1;
-        } else if res >= BUFFER_WIDTH as isize {
-            self.new_line();
-        } else {
-            self.column_position = res as usize;
-        }
-
-        self.update_cursor();
-    }
-
-    fn shift_row_by(&mut self, by: isize) {
-        let res = self.row_position as isize + by;
-        if res < 0 {
-            self.row_position = 0;
-        } else if res >= BUFFER_HEIGHT as isize {
-            self.row_position = BUFFER_HEIGHT - 1;
-        } else {
-            self.row_position = res as usize;
-        }
-
-        self.update_cursor();
-    }
-
-    fn clear_row(&mut self, row: usize) {
-        let blank = ScreenChar {
-            ascii_character: b' ',
-            color_code: self.color_code,
-        };
-        for col in 0..BUFFER_WIDTH {
-            self.buffer.chars[row][col].write(blank);
-        }
-    }
-
-    fn read_at_current(&self) -> u8 {
-        self.buffer.chars[self.row_position][self.column_position]
-            .read()
-            .ascii_character
-    }
-
-    fn update_cursor(&mut self) {
-        let position = self.row_position * BUFFER_WIDTH + self.column_position;
+    pub fn set_cursor_x(&mut self, x: usize) {
+        let position = TEXT_HEIGHT * BUFFER_WIDTH + x + 2;
         unsafe {
             self.cursor.port1.write(0x0F);
             self.cursor.port2.write((position & 0xFF) as u8);
             self.cursor.port1.write(0x0E);
             self.cursor.port2.write(((position >> 8) & 0xFF) as u8);
+        }
+    }
+
+    pub fn init_shell(&mut self) {
+        self.buffer.chars[SHELL_ROW][0].write(ScreenChar {
+            ascii_character: b'>',
+            color_code: ColorCode::new(Color::Blue, Color::Black),
+        });
+        self.set_cursor_x(0);
+    }
+
+    pub fn write_shell_line(&mut self, text: &str) {
+        self.clear_row(SHELL_ROW, 2);
+        let (row, col) = (self.row_position, self.column_position);
+        self.row_position = SHELL_ROW;
+        self.column_position = 2;
+        self.write_string(text);
+        (self.row_position, self.column_position) = (row, col);
+    }
+
+    pub fn set_color(&mut self, color: Color) {
+        self.color_code = ColorCode::new(color, Color::Black);
+    }
+
+    pub fn reset_color(&mut self) {
+        self.set_color(Color::Magenta);
+    }
+
+    fn new_line(&mut self) {
+        for row in 1..TEXT_HEIGHT {
+            for col in 0..BUFFER_WIDTH {
+                let character = self.buffer.chars[row][col].read();
+                self.buffer.chars[row - 1][col].write(character);
+            }
+        }
+        self.clear_row(TEXT_HEIGHT - 1, 0);
+        self.column_position = 0;
+    }
+
+    fn clear_row(&mut self, row: usize, start: usize) {
+        let blank = ScreenChar {
+            ascii_character: b' ',
+            color_code: self.color_code,
+        };
+        for col in start..BUFFER_WIDTH {
+            self.buffer.chars[row][col].write(blank);
         }
     }
 }
@@ -186,7 +161,7 @@ impl fmt::Write for Writer {
 
 lazy_static! {
     pub static ref WRITER: Mutex<Writer> = Mutex::new(Writer {
-        row_position: BUFFER_HEIGHT - 1,
+        row_position: TEXT_HEIGHT - 1,
         column_position: 0,
         color_code: ColorCode::new(Color::Magenta, Color::Black),
         buffer: unsafe { &mut *(0xb8000 as *mut Buffer) },
@@ -213,21 +188,14 @@ pub fn _print(args: fmt::Arguments) {
     interrupts::without_interrupts(|| WRITER.lock().write_fmt(args).unwrap());
 }
 
-pub fn clear_last_char() {
-    interrupts::without_interrupts(|| WRITER.lock().remove_current_char());
-}
-
-pub fn shift_column(by: isize) {
-    interrupts::without_interrupts(|| WRITER.lock().shift_by(by));
-}
-
-pub fn shift_row(by: isize) {
-    interrupts::without_interrupts(|| WRITER.lock().shift_row_by(by));
+pub fn vga_buffer<T: FnMut(&mut Writer)>(mut f: T) {
+    f(&mut WRITER.lock())
 }
 
 #[cfg(test)]
 mod tests {
     use super::{BUFFER_HEIGHT, WRITER};
+    use crate::drivers::vga_buffer::TEXT_HEIGHT;
 
     #[test_case]
     fn test_println_simple() {
@@ -251,7 +219,7 @@ mod tests {
             let mut writer = WRITER.lock();
             writeln!(writer, "\n{}", s).expect("writeln failed");
             for (i, c) in s.chars().enumerate() {
-                let screen_char = writer.buffer.chars[BUFFER_HEIGHT - 2][i].read();
+                let screen_char = writer.buffer.chars[TEXT_HEIGHT - 2][i].read();
                 assert_eq!(char::from(screen_char.ascii_character), c);
             }
         });

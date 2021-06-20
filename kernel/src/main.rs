@@ -13,25 +13,18 @@ use yacuri::{
     allocator,
     allocator::{memory, memory::BootInfoFrameAllocator},
     drivers::keyboard,
-    hlt_loop, println,
+    graphics::init_graphics,
+    hlt_loop, kprintln, println,
     scheduling::{executor::Executor, task::Task},
 };
-use yacuri::serial_println;
 
 entry_point!(kernel_main);
 
 fn kernel_main(boot_info: &'static mut BootInfo) -> ! {
-    if let Some(framebuffer) = boot_info.framebuffer.as_mut() {
-        serial_println!("{:#?}", framebuffer.info());
-        for byte in framebuffer.buffer_mut() {
-            *byte = 0x90;
-        }
-    }
-    loop {}
-
-    println!("Hello World! rust says trans rights");
+    kprintln!("Hello World! rust says trans rights but with framebuffers now");
 
     yacuri::init();
+    init_graphics(boot_info.framebuffer.as_mut().unwrap());
     init_memory(boot_info);
 
     #[cfg(test)]
@@ -52,7 +45,7 @@ fn init_memory(boot_info: &'static BootInfo) {
 #[cfg(not(test))]
 #[panic_handler]
 fn panic(info: &PanicInfo) -> ! {
-    println!("{}", info);
+    kprintln!("{}", info);
     hlt_loop()
 }
 

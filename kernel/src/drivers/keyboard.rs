@@ -1,4 +1,4 @@
-use crate::{drivers::disk::fat::fat_from_secondary, serial_println, shell::Shell};
+use crate::{drivers::disk::fat::fat_from_secondary, kprintln, shell::Shell};
 use conquer_once::spin::OnceCell;
 use core::{
     pin::Pin,
@@ -31,10 +31,10 @@ pub(crate) fn add_scancode(scancode: u8) {
         if queue.push(scancode).is_ok() {
             WAKER.wake();
         } else {
-            serial_println!("WARNING: scancode queue full; dropping keyboard input");
+            kprintln!("WARNING: scancode queue full; dropping keyboard input");
         }
     } else {
-        serial_println!("WARNING: scancode queue uninitialized");
+        kprintln!("WARNING: scancode queue uninitialized");
     }
 }
 

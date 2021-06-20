@@ -12,7 +12,7 @@ pub enum Command {
     Mkdir { directory: String },
     Put { file: String, text: String },
     Exec { file: String },
-    Exit
+    Exit,
 }
 
 impl Command {

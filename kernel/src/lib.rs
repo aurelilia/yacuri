@@ -16,6 +16,7 @@ use core::panic::PanicInfo;
 
 pub mod allocator;
 pub mod drivers;
+pub mod graphics;
 pub mod scheduling;
 pub mod shell;
 
@@ -67,14 +68,14 @@ where
     T: Fn(),
 {
     fn run(&self) {
-        serial_print!("{}...\t", core::any::type_name::<T>());
+        kprint!("{}...\t", core::any::type_name::<T>());
         self();
-        serial_println!("[ok]");
+        kprintln!("[ok]");
     }
 }
 
 pub fn test_runner(tests: &[&dyn Testable]) {
-    serial_println!("Running {} tests", tests.len());
+    kprintln!("Running {} tests", tests.len());
     for test in tests {
         test.run();
     }
@@ -82,8 +83,8 @@ pub fn test_runner(tests: &[&dyn Testable]) {
 }
 
 pub fn test_panic_handler(info: &PanicInfo) -> ! {
-    serial_println!("[failed]\n");
-    serial_println!("Error: {}\n", info);
+    kprintln!("[failed]\n");
+    kprintln!("Error: {}\n", info);
     exit_qemu(QemuExitCode::Failed)
 }
 

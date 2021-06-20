@@ -12,9 +12,8 @@ use core::panic::PanicInfo;
 use x86_64::VirtAddr;
 use yacuri::{
     allocator,
-    allocator::{memory, HEAP_SIZE},
+    allocator::{memory, memory::BootInfoFrameAllocator, HEAP_SIZE},
 };
-use yacuri::allocator::memory::BootInfoFrameAllocator;
 
 entry_point!(main);
 

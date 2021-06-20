@@ -1,6 +1,8 @@
+use core::fmt::Write;
 use lazy_static::lazy_static;
 use spin::Mutex;
 use uart_16550::SerialPort;
+use x86_64::instructions::interrupts;
 
 lazy_static! {
     pub static ref SERIAL1: Mutex<SerialPort> = {
@@ -12,7 +14,7 @@ lazy_static! {
 
 /// Prints to the host through the serial interface.
 #[macro_export]
-macro_rules! serial_print {
+macro_rules! kprint {
     ($($arg:tt)*) => {
         $crate::drivers::serial::_print(format_args!($($arg)*));
     };
@@ -20,18 +22,15 @@ macro_rules! serial_print {
 
 /// Prints to the host through the serial interface, appending a newline.
 #[macro_export]
-macro_rules! serial_println {
+macro_rules! kprintln {
     () => ($crate::serial_print!("\n"));
-    ($fmt:expr) => ($crate::serial_print!(concat!($fmt, "\n")));
-    ($fmt:expr, $($arg:tt)*) => ($crate::serial_print!(
+    ($fmt:expr) => ($crate::kprint!(concat!($fmt, "\n")));
+    ($fmt:expr, $($arg:tt)*) => ($crate::kprint!(
         concat!($fmt, "\n"), $($arg)*));
 }
 
 #[doc(hidden)]
 pub fn _print(args: ::core::fmt::Arguments) {
-    use core::fmt::Write;
-    use x86_64::instructions::interrupts;
-
     interrupts::without_interrupts(|| {
         SERIAL1
             .lock()

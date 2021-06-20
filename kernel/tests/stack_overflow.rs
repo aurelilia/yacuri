@@ -5,8 +5,7 @@
 use core::panic::PanicInfo;
 use lazy_static::lazy_static;
 use x86_64::structures::idt::{InterruptDescriptorTable, InterruptStackFrame};
-use yacuri::{exit_qemu, serial_print, serial_println, QemuExitCode};
-use yacuri::drivers::interrupts::gdt;
+use yacuri::{drivers::interrupts::gdt, exit_qemu, serial_print, serial_println, QemuExitCode};
 
 lazy_static! {
     static ref TEST_IDT: InterruptDescriptorTable = {

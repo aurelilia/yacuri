@@ -1,9 +1,9 @@
+use bootloader::boot_info::{MemoryRegionKind, MemoryRegions};
 use x86_64::{
     registers::control::Cr3,
     structures::paging::{FrameAllocator, OffsetPageTable, PageTable, PhysFrame, Size4KiB},
     PhysAddr, VirtAddr,
 };
-use bootloader::boot_info::{MemoryRegions, MemoryRegionKind};
 
 /// A FrameAllocator that returns usable frames from the bootloader's memory map.
 pub struct BootInfoFrameAllocator {

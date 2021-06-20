@@ -1,7 +1,12 @@
-use crate::{drivers::{
-    disk::fat::{FatDir, FatFs},
-    vga_buffer::{vga_buffer, Color},
-}, print, println, serial_println, shell::command::Command, QemuExitCode};
+use crate::{
+    drivers::{
+        disk::fat::{FatDir, FatFs},
+        vga_buffer::{vga_buffer, Color},
+    },
+    kprintln, print, println,
+    shell::command::Command,
+    QemuExitCode,
+};
 use alloc::{
     format,
     string::{String, ToString},
@@ -133,14 +138,14 @@ impl Shell {
                 let file = self.read_file(&file);
                 if let Some(file) = file {
                     println!("executing {} ({} bytes)...", file, file.len());
-                    serial_println!("{:#?}", yacuri_lang::execute_program(&file))
+                    kprintln!("{:#?}", yacuri_lang::execute_program(&file))
                 }
             }
 
             Command::Exit => {
                 self.filesystem.take().unwrap().unmount().unwrap();
                 crate::exit_qemu(QemuExitCode::Success);
-            },
+            }
         }
         println!();
     }
@@ -178,7 +183,12 @@ impl Shell {
 
     fn workdir(&self) -> FatDir {
         if let Some(name) = &self.working_dir {
-            self.filesystem.as_ref().unwrap().root_dir().open_dir(name).unwrap()
+            self.filesystem
+                .as_ref()
+                .unwrap()
+                .root_dir()
+                .open_dir(name)
+                .unwrap()
         } else {
             self.filesystem.as_ref().unwrap().root_dir()
         }

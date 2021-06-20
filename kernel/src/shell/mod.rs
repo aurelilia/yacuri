@@ -93,9 +93,9 @@ impl Shell {
             }
 
             Command::Cat { file } => {
-                let file = self.read_file(&file);
-                if let Some(file) = file {
-                    println!("{} ({} bytes):\n{}", file, file.len(), file)
+                let content = self.read_file(&file);
+                if let Some(content) = content {
+                    println!("{} ({} bytes):\n{}", file, content.len(), content)
                 }
             }
 

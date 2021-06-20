@@ -12,6 +12,7 @@ pub enum Command {
     Mkdir { directory: String },
     Put { file: String, text: String },
     Exec { file: String },
+    Exit
 }
 
 impl Command {
@@ -43,6 +44,8 @@ impl Command {
             Some(Token::Exec) => Ok(Some(Command::Exec {
                 file: path_arg(&mut lexer)?,
             })),
+
+            Some(Token::Exit) => Ok(Some(Command::Exit)),
 
             None => Ok(None),
             _ => Err(format!(
@@ -95,6 +98,8 @@ enum Token {
     Put,
     #[token("exec")]
     Exec,
+    #[token("exit")]
+    Exit,
 
     #[regex("[a-zA-Z_][a-zA-Z0-9_]*", priority = 2)]
     Word,

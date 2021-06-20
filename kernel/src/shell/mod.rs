@@ -1,11 +1,7 @@
-use crate::{
-    drivers::{
-        disk::fat::{FatDir, FatFs},
-        vga_buffer::{vga_buffer, Color},
-    },
-    print, println, serial_println,
-    shell::command::Command,
-};
+use crate::{drivers::{
+    disk::fat::{FatDir, FatFs},
+    vga_buffer::{vga_buffer, Color},
+}, print, println, serial_println, shell::command::Command, QemuExitCode};
 use alloc::{
     format,
     string::{String, ToString},
@@ -18,7 +14,7 @@ use pc_keyboard::{DecodedKey, KeyCode};
 mod command;
 
 pub struct Shell {
-    filesystem: FatFs,
+    filesystem: Option<FatFs>,
     working_dir: Option<String>,
     current_command: String,
     cursor_pos: usize,
@@ -140,6 +136,11 @@ impl Shell {
                     serial_println!("{:#?}", yacuri_lang::execute_program(&file))
                 }
             }
+
+            Command::Exit => {
+                self.filesystem.take().unwrap().unmount().unwrap();
+                crate::exit_qemu(QemuExitCode::Success);
+            },
         }
         println!();
     }
@@ -177,9 +178,9 @@ impl Shell {
 
     fn workdir(&self) -> FatDir {
         if let Some(name) = &self.working_dir {
-            self.filesystem.root_dir().open_dir(name).unwrap()
+            self.filesystem.as_ref().unwrap().root_dir().open_dir(name).unwrap()
         } else {
-            self.filesystem.root_dir()
+            self.filesystem.as_ref().unwrap().root_dir()
         }
     }
 
@@ -197,7 +198,7 @@ impl Shell {
     pub fn new(filesystem: FatFs) -> Shell {
         vga_buffer(|w| w.init_shell());
         Shell {
-            filesystem,
+            filesystem: Some(filesystem),
             working_dir: None,
             current_command: "".to_string(),
             cursor_pos: 0,

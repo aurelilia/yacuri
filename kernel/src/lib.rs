@@ -22,6 +22,7 @@ pub mod shell;
 use crate::drivers::interrupts::{gdt, interrupts};
 #[cfg(test)]
 use bootloader::{entry_point, BootInfo};
+use x86_64::instructions::port::Port;
 
 #[cfg(test)]
 entry_point!(test_kernel_main);
@@ -83,8 +84,7 @@ pub fn test_runner(tests: &[&dyn Testable]) {
 pub fn test_panic_handler(info: &PanicInfo) -> ! {
     serial_println!("[failed]\n");
     serial_println!("Error: {}\n", info);
-    exit_qemu(QemuExitCode::Failed);
-    hlt_loop()
+    exit_qemu(QemuExitCode::Failed)
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -94,11 +94,10 @@ pub enum QemuExitCode {
     Failed = 0x11,
 }
 
-pub fn exit_qemu(exit_code: QemuExitCode) {
-    use x86_64::instructions::port::Port;
-
+pub fn exit_qemu(exit_code: QemuExitCode) -> ! {
     unsafe {
         let mut port = Port::new(0xf4);
         port.write(exit_code as u32);
     }
+    hlt_loop()
 }

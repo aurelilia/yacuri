@@ -1,9 +1,0 @@
-[build]
-target = ".cargo/x86_64-yacuri.json"
-
-[unstable]
-build-std-features = ["compiler-builtins-mem"]
-build-std = ["core", "compiler_builtins", "alloc"]
-
-[target.'cfg(target_os = "none")']
-runner = "bootimage runner"

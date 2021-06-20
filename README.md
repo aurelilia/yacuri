@@ -19,10 +19,14 @@ in the parent directory will fail.
 Before being able to use the kernel, you need to prepare the needed disks. `kernel/init.sh`
 can do this for you.
 
+Additionally, `cargo krun` currently requires OVMF UEFI firmware. If the path
+of yours differs, modify `RUN_ARGS`  and `TEST_ARGS` in `kernel/bootimage/src/main.rs`.
+(TODO: Maybe package the firmware? this is not a solution.)
+
 ```bash 
 # Execute in QEMU
-cd kernel; cargo run
+cd kernel; cargo krun
 
 # Run tests
-cd kernel; cargo test; cd ../lang; cargo test
+cd kernel; cargo ltest; cd ../lang; cargo test
 ```

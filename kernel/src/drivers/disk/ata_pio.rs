@@ -306,7 +306,7 @@ mod tests {
     static ACTUAL: &[u8; 1024 * 64] = include_bytes!("test_drive.bin");
     // The bus used for all tests.
     lazy_static! {
-        pub static ref BUS: Mutex<AtaDrive> = Mutex::new(AtaDrive::new(0x1F0, 0x3F6));
+        pub static ref BUS: Mutex<AtaDrive> = Mutex::new(unsafe { AtaDrive::new(0x1F0, 0x3F6) });
     }
 
     #[test_case]

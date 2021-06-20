@@ -6,7 +6,7 @@ edition = "2018"
 
 
 [dependencies]
-# PROGRAMM DEPENDENCIES
+# PROGRAMM
 yacuri_lang = { path = "../lang", default-features = false }
 logos = { version = "0.12.0", default-features = false, features = ["export_derive"] }
 
@@ -15,8 +15,7 @@ crossbeam-queue = { version = "0.3.2", default-features = false, features = ["al
 conquer-once = { version = "0.3.2", default-features = false }
 futures-util = { version = "0.3.15", default-features = false, features = ["alloc"] }
 
-# CORE KERNEL DEPENDENCIES / X86 DEPENDENCIES
-bootloader = { version = "0.9.18", features = ["map_physical_memory"]}
+# CORE KERNEL / X86
 spin = "0.9.0"
 volatile = "0.3.0"
 x86_64 = "0.14.3"
@@ -25,6 +24,11 @@ pic8259 = "0.10.1"
 pc-keyboard = "0.5.1"
 lazy_static = { version = "1.4", features = ["spin_no_std"]}
 linked_list_allocator = "0.9.0"
+
+# TODO: Change this back to upstream when PR #179 (or equivalent) hopefully gets merged
+[dependencies.bootloader]
+git = "https://github.com/anellie/bootloader"
+rev = "bb13a86f4b180e354702c91ecb9bc7afbb724ede"
 
 [dependencies.fatfs]
 git = "https://github.com/rafalh/rust-fatfs"
@@ -46,11 +50,17 @@ name = "stack_overflow"
 harness = false
 
 
+[package.metadata.bootloader]
+map-physical-memory = true
+desired-framebuffer-width = 1920
+desired-framebuffer-height = 1080
+
 [package.metadata.bootimage]
 run-args = [
     "-device", "isa-debug-exit,iobase=0xf4,iosize=0x04",
     "-drive", "format=raw,file=fs.bin",
     "-serial", "stdio",
+    "-M",  "q35"
 ]
 test-args = [
     "-device", "isa-debug-exit,iobase=0xf4,iosize=0x04",

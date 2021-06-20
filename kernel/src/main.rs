@@ -16,10 +16,19 @@ use yacuri::{
     hlt_loop, println,
     scheduling::{executor::Executor, task::Task},
 };
+use yacuri::serial_println;
 
 entry_point!(kernel_main);
 
-fn kernel_main(boot_info: &'static BootInfo) -> ! {
+fn kernel_main(boot_info: &'static mut BootInfo) -> ! {
+    if let Some(framebuffer) = boot_info.framebuffer.as_mut() {
+        serial_println!("{:#?}", framebuffer.info());
+        for byte in framebuffer.buffer_mut() {
+            *byte = 0x90;
+        }
+    }
+    loop {}
+
     println!("Hello World! rust says trans rights");
 
     yacuri::init();
@@ -34,9 +43,9 @@ fn kernel_main(boot_info: &'static BootInfo) -> ! {
 }
 
 fn init_memory(boot_info: &'static BootInfo) {
-    let phys_mem_offset = VirtAddr::new(boot_info.physical_memory_offset);
+    let phys_mem_offset = VirtAddr::new(boot_info.physical_memory_offset.into_option().unwrap());
     let mut mapper = unsafe { memory::init(phys_mem_offset) };
-    let mut frame_allocator = unsafe { BootInfoFrameAllocator::init(&boot_info.memory_map) };
+    let mut frame_allocator = unsafe { BootInfoFrameAllocator::init(&boot_info.memory_regions) };
     allocator::init_heap(&mut mapper, &mut frame_allocator).expect("heap initialization failed");
 }
 

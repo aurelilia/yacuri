@@ -1,11 +1,12 @@
-use crate::lexer::Token;
+use crate::{lexer::Token, smol_str::SmolStr};
 use alloc::{boxed::Box, vec::Vec};
-use smol_str::SmolStr;
 
+#[derive(Debug)]
 pub struct Module {
     pub functions: Vec<Function>,
 }
 
+#[derive(Debug)]
 pub struct Function {
     pub name: SmolStr,
     pub params: Vec<Parameter>,
@@ -13,20 +14,24 @@ pub struct Function {
     pub body: AExpr,
 }
 
+#[derive(Debug)]
 pub struct Parameter {
     pub name: SmolStr,
     pub ty: AType,
 }
 
+#[derive(Debug)]
 pub struct AType {
     pub name: SmolStr,
 }
 
+#[derive(Debug)]
 pub struct AExpr {
     pub ty: Box<EExpr>, // TODO use a bump allocator ideally
     pub start: usize,
 }
 
+#[derive(Debug)]
 pub enum EExpr {
     Literal(Literal),
 
@@ -68,6 +73,7 @@ pub enum EExpr {
     },
 }
 
+#[derive(Debug)]
 pub enum Literal {
     Bool(bool),
     Int(i64),

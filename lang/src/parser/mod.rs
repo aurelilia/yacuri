@@ -3,11 +3,12 @@ mod ast;
 use crate::{
     error::{Error, Error::E101, Res},
     lexer::{Lexer, TKind, TKind::*, Token},
-    parser::ast::{AExpr, AType, EExpr, Function, Literal, Module, Parameter},
+    parser::ast::{AExpr, AType, EExpr, Function, Literal, Parameter},
+    smol_str::SmolStr,
 };
 use alloc::vec::Vec;
+pub use ast::Module;
 use core::{fmt::Alignment::Right, mem, str::FromStr};
-use smol_str::SmolStr;
 
 pub struct Parser<'src> {
     lexer: Lexer<'src>,
@@ -16,9 +17,10 @@ pub struct Parser<'src> {
 }
 
 impl<'src> Parser<'src> {
-    pub fn parse(&mut self) -> Res<Module> {
+    pub fn parse(mut self) -> Result<Module, Vec<Error>> {
         let mut functions = Vec::new();
         while !self.is_at_end() {
+            self.advance(); // consume 'fun' for now
             match self.function() {
                 Ok(f) => functions.push(f),
                 Err(e) => {
@@ -27,7 +29,11 @@ impl<'src> Parser<'src> {
                 }
             }
         }
-        Ok(Module { functions })
+        if self.errors.is_empty() {
+            Ok(Module { functions })
+        } else {
+            Err(self.errors)
+        }
     }
 
     fn function(&mut self) -> Res<Function> {
@@ -280,6 +286,16 @@ impl<'src> Parser<'src> {
                 Fun => return,
                 _ => (),
             }
+        }
+    }
+
+    pub fn new(src: &'src str) -> Self {
+        let mut lexer = Lexer::new(src);
+        let current = lexer.next().unwrap();
+        Self {
+            lexer,
+            current,
+            errors: Vec::new(),
         }
     }
 }

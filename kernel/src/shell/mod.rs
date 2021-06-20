@@ -3,7 +3,7 @@ use crate::{
         disk::fat::{fat_from_secondary, FatDir, FatFs},
         vga_buffer::{vga_buffer, Color},
     },
-    print, println,
+    print, println, serial_println,
     shell::command::Command,
 };
 use alloc::{
@@ -104,29 +104,9 @@ impl Shell {
             }
 
             Command::Cat { file } => {
-                let obj = self.workdir().open_file(&file);
-                if let Ok(mut obj) = obj {
-                    let size = obj.seek(SeekFrom::End(0)).unwrap();
-                    let mut buf = Vec::with_capacity(size as usize);
-                    unsafe {
-                        buf.set_len(size as usize);
-                    }
-
-                    obj.seek(SeekFrom::Start(0));
-                    let read = match obj.read(&mut buf) {
-                        Ok(read) => read,
-                        Err(err) => {
-                            println!("cat: failed to read file: {:?}", err);
-                            return;
-                        }
-                    };
-
-                    let str = String::from_utf8(buf);
-                    if let Ok(str) = str {
-                        println!("{} ({} bytes):\n{}", file, read, str)
-                    } else {
-                        println!("cat: file is not valid UTF-8")
-                    }
+                let file = self.read_file(&file);
+                if let Some(file) = file {
+                    println!("{} ({} bytes):\n{}", file, file.len(), file)
                 }
             }
 
@@ -160,9 +140,46 @@ impl Shell {
                 }
             }
 
-            Command::Exec { file } => println!("exec: error running {}: unimplemented", file),
+            Command::Exec { file } => {
+                let file = self.read_file(&file);
+                if let Some(file) = file {
+                    println!("executing {} ({} bytes)...", file, file.len());
+                    serial_println!("{:#?}", yacuri_lang::execute_program(&file))
+                }
+            }
         }
         println!();
+    }
+
+    fn read_file(&mut self, rel_path: &str) -> Option<String> {
+        let obj = self.workdir().open_file(&rel_path);
+        if let Ok(mut obj) = obj {
+            let size = obj.seek(SeekFrom::End(0)).unwrap();
+            let mut buf = Vec::with_capacity(size as usize);
+            unsafe {
+                buf.set_len(size as usize);
+            }
+
+            obj.seek(SeekFrom::Start(0));
+            match obj.read(&mut buf) {
+                Ok(_) => (),
+                Err(err) => {
+                    println!("failed to read file: {:?}", err);
+                    return None;
+                }
+            };
+
+            let str = String::from_utf8(buf);
+            if let Ok(str) = str {
+                Some(str)
+            } else {
+                println!("error: file is not valid UTF-8");
+                None
+            }
+        } else {
+            println!("error: file does not exist");
+            None
+        }
     }
 
     fn workdir(&self) -> FatDir {

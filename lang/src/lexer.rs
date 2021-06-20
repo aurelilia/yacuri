@@ -1,5 +1,5 @@
+use crate::smol_str::SmolStr;
 pub use logos::{Logos, Span};
-use smol_str::SmolStr;
 
 pub struct Lexer<'l> {
     logos: logos::Lexer<'l, TKind>,
@@ -32,6 +32,7 @@ impl<'l> Iterator for Lexer<'l> {
     }
 }
 
+#[derive(Debug, Clone)]
 pub struct Token {
     pub kind: TKind,
     pub lex: SmolStr,
@@ -150,13 +151,13 @@ pub enum TKind {
     #[error]
     Error,
 
-    #[regex(r"//[^\n]*")]
-    #[regex(r"/\*([^*]|\**[^*/])*\*+/")]
+    #[regex(r"//[^\n]*", logos::skip)]
+    #[regex(r"/\*([^*]|\**[^*/])*\*+/", logos::skip)]
     Comment,
 
-    #[regex(r"[ \t\f]+")]
+    #[regex(r"[ \t\f]+", logos::skip)]
     Whitespace,
-    #[token(r"[\n]+")]
+    #[token(r"[\n]+", logos::skip)]
     Newline,
 }
 

@@ -43,7 +43,8 @@ harness = false
 
 [package.metadata.bootimage]
 run-args = [
-    "-drive", "format=raw,file=fs.bin"
+    "-drive", "format=raw,file=fs.bin",
+    "-serial", "stdio",
 ]
 test-args = [
     "-device", "isa-debug-exit,iobase=0xf4,iosize=0x04",

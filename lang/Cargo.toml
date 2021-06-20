@@ -8,7 +8,6 @@ edition = "2018"
 [dependencies]
 # Enable no_std support (disable std feature)
 logos = { version = "0.12.0", default-features = false, features = ["export_derive"] }
-smol_str = "0.1.17"
 
 [features]
 default = ["std"]

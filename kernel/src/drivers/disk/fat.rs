@@ -1,7 +1,5 @@
 use crate::drivers::disk::ata_pio::AtaDrive;
 use fatfs::{DefaultTimeProvider, Dir, FileSystem, LossyOemCpConverter};
-use lazy_static::lazy_static;
-use spin::Mutex;
 
 pub type FatFs = FileSystem<AtaDrive, DefaultTimeProvider, LossyOemCpConverter>;
 pub type FatDir<'d> = Dir<'d, AtaDrive, DefaultTimeProvider, LossyOemCpConverter>;

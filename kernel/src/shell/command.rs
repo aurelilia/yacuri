@@ -71,7 +71,7 @@ fn optional_path_arg(lexer: &mut Lexer<Token>) -> Result<Option<String>, String>
     }
 }
 
-fn expect(expected: Token, was: Token) -> Result<(), String> {
+fn _expect(expected: Token, was: Token) -> Result<(), String> {
     if was == expected {
         Ok(())
     } else {

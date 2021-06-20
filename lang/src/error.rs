@@ -1,5 +1,5 @@
 use crate::lexer::TKind;
-use alloc::{format, string::String};
+use core::fmt::Display;
 
 pub type Res<T> = Result<T, Error>;
 
@@ -9,8 +9,8 @@ pub enum Error {
     E101,
 }
 
-impl Error {
-    pub fn to_string(&self) -> String {
-        format!("{:?}", self)
+impl Display for Error {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        write!(f, "{:?}", self)
     }
 }

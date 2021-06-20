@@ -10,7 +10,12 @@ edition = "2018"
 yacuri_lang = { path = "../lang", default-features = false }
 logos = { version = "0.12.0", default-features = false, features = ["export_derive"] }
 
-# CORE KERNEL DEPENDENCIES
+# SCHEDULING
+crossbeam-queue = { version = "0.3.2", default-features = false, features = ["alloc"] }
+conquer-once = { version = "0.2.0", default-features = false }
+futures-util = { version = "0.3.4", default-features = false, features = ["alloc"] }
+
+# CORE KERNEL DEPENDENCIES / X86 DEPENDENCIES
 bootloader = { version = "0.9.8", features = ["map_physical_memory"]}
 spin = "0.5.2"
 volatile = "0.2.6"

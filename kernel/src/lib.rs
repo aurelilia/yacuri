@@ -16,6 +16,7 @@ use core::panic::PanicInfo;
 
 pub mod allocator;
 pub mod drivers;
+pub mod scheduling;
 pub mod shell;
 
 use crate::drivers::interrupts::{gdt, interrupts};

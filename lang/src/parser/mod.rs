@@ -8,7 +8,7 @@ use crate::{
 };
 use alloc::vec::Vec;
 pub use ast::Module;
-use core::{fmt::Alignment::Right, mem, str::FromStr};
+use core::{mem, str::FromStr};
 
 pub struct Parser<'src> {
     lexer: Lexer<'src>,
@@ -77,7 +77,7 @@ impl<'src> Parser<'src> {
     fn var_decl(&mut self) -> Res<AExpr> {
         let final_ = self.advance().kind == Val;
         let name = self.consume(Identifier)?;
-        self.consume(Equal);
+        self.consume(Equal)?;
         let value = self.expression()?;
         Ok(AExpr {
             ty: box EExpr::Variable {
@@ -177,7 +177,7 @@ impl<'src> Parser<'src> {
                             }
                         }
                     }
-                    self.consume(RightParen);
+                    self.consume(RightParen)?;
                     expr = AExpr {
                         start: expr.start,
                         ty: box EExpr::Call { callee: expr, args },
@@ -220,7 +220,7 @@ impl<'src> Parser<'src> {
             LeftParen => {
                 self.advance();
                 let expr = self.expression()?;
-                self.consume(RightParen);
+                self.consume(RightParen)?;
                 Ok(expr)
             }
 

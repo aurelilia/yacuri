@@ -19,6 +19,5 @@ mod smol_str;
 mod vm;
 
 pub fn execute_program(program: &str) -> Result<Module, Vec<Error>> {
-    let mut parser = Parser::new(program);
-    parser.parse()
+    Parser::new(program).parse()
 }

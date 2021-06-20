@@ -194,7 +194,7 @@ pub fn vga_buffer<T: FnMut(&mut Writer)>(mut f: T) {
 
 #[cfg(test)]
 mod tests {
-    use super::{BUFFER_HEIGHT, WRITER};
+    use super::WRITER;
     use crate::drivers::vga_buffer::TEXT_HEIGHT;
 
     #[test_case]

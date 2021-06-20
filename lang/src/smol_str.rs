@@ -1,9 +1,5 @@
-use alloc::{
-    fmt,
-    string::{String, ToString},
-    sync::Arc,
-};
-use core::{borrow::Borrow, cmp, cmp::Ordering, hash, iter, ops::Deref};
+use alloc::{fmt, string::String, sync::Arc};
+use core::{borrow::Borrow, cmp, cmp::Ordering, hash, ops::Deref};
 
 /// This module is almost 1:1 from rust_analyzer: https://github.com/rust-analyzer/smol_str
 /// Thank you to the rust_analyzer team!
@@ -56,11 +52,6 @@ impl SmolStr {
     #[inline(always)]
     pub fn as_str(&self) -> &str {
         self.0.as_str()
-    }
-
-    #[inline(always)]
-    pub fn to_string(&self) -> String {
-        self.as_str().to_string()
     }
 
     #[inline(always)]

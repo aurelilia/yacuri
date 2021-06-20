@@ -1,6 +1,6 @@
 use crate::{
     drivers::{
-        disk::fat::{fat_from_secondary, FatDir, FatFs},
+        disk::fat::{FatDir, FatFs},
         vga_buffer::{vga_buffer, Color},
     },
     print, println, serial_println,
@@ -9,20 +9,13 @@ use crate::{
 use alloc::{
     format,
     string::{String, ToString},
-    vec,
     vec::Vec,
 };
-use core::cmp::{max, min};
-use fatfs::{Error, IoBase, Read, Seek, SeekFrom, Write};
-use lazy_static::lazy_static;
+use core::cmp::min;
+use fatfs::{Read, Seek, SeekFrom, Write};
 use pc_keyboard::{DecodedKey, KeyCode};
-use spin::Mutex;
 
 mod command;
-
-lazy_static! {
-    pub static ref SHELL: Mutex<Shell> = Mutex::new(Shell::new(fat_from_secondary()));
-}
 
 pub struct Shell {
     filesystem: FatFs,
@@ -160,7 +153,7 @@ impl Shell {
                 buf.set_len(size as usize);
             }
 
-            obj.seek(SeekFrom::Start(0));
+            obj.seek(SeekFrom::Start(0)).unwrap();
             match obj.read(&mut buf) {
                 Ok(_) => (),
                 Err(err) => {

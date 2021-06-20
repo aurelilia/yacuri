@@ -8,14 +8,13 @@ extern crate alloc;
 
 use bootloader::{entry_point, BootInfo};
 use core::panic::PanicInfo;
-use fatfs::Write;
 use x86_64::VirtAddr;
 use yacuri::{
     allocator,
     allocator::{memory, memory::BootInfoFrameAllocator},
-    drivers::disk::fat::fat_from_secondary,
+    drivers::keyboard,
     hlt_loop, println,
-    shell::SHELL,
+    scheduling::{executor::Executor, task::Task},
 };
 
 entry_point!(kernel_main);
@@ -25,12 +24,13 @@ fn kernel_main(boot_info: &'static BootInfo) -> ! {
 
     yacuri::init();
     init_memory(boot_info);
-    SHELL.lock(); // Initialize lazy_static
 
     #[cfg(test)]
     test_main();
 
-    hlt_loop()
+    let mut executor = Executor::new();
+    executor.spawn(Task::new(keyboard::process_keypresses()));
+    executor.run();
 }
 
 fn init_memory(boot_info: &'static BootInfo) {

@@ -1,35 +1,47 @@
 pub use logos::{Logos, Span};
+use smol_str::SmolStr;
 
 pub struct Lexer<'l> {
-    logos: logos::Lexer<'l, Token>,
+    logos: logos::Lexer<'l, TKind>,
 }
 
 impl<'l> Lexer<'l> {
-    pub fn _span(&self) -> Span {
+    pub fn span(&self) -> Span {
         self.logos.span()
     }
 
-    pub fn _new(input: &'l str) -> Self {
+    pub fn new(input: &'l str) -> Self {
         Self {
-            logos: Token::lexer(input),
+            logos: TKind::lexer(input),
         }
     }
 }
 
 impl<'l> Iterator for Lexer<'l> {
-    type Item = (Token, &'l str);
+    type Item = Token;
 
     fn next(&mut self) -> Option<Self::Item> {
         let kind = self.logos.next()?;
-        let text = self.logos.slice();
-        Some((kind, text))
+        let lexeme = self.logos.slice();
+        let span = self.logos.span();
+        Some(Token {
+            kind,
+            lex: SmolStr::new(lexeme),
+            start: span.start,
+        })
     }
+}
+
+pub struct Token {
+    pub kind: TKind,
+    pub lex: SmolStr,
+    pub start: usize,
 }
 
 /// A direct token that implements Logos. Most are keywords or special chars.
 /// The `Error` token is a special token signifying a syntax error.
 #[derive(Logos, PartialEq, Eq, Debug, Clone, Copy, Hash)]
-pub enum Token {
+pub enum TKind {
     #[token("(")]
     LeftParen,
     #[token(")")]
@@ -107,8 +119,8 @@ pub enum Token {
     False,
     #[token("for")]
     For,
-    #[token("func")]
-    Func,
+    #[token("fun")]
+    Fun,
     #[token("if")]
     If,
     #[token("import")]
@@ -142,6 +154,31 @@ pub enum Token {
     #[regex(r"/\*([^*]|\**[^*/])*\*+/")]
     Comment,
 
-    #[regex(r"[ \t\n\f]+")]
+    #[regex(r"[ \t\f]+")]
     Whitespace,
+    #[token(r"[\n]+")]
+    Newline,
+}
+
+impl TKind {
+    pub fn infix_binding_power(&self) -> Option<(u8, u8)> {
+        Some(match self {
+            Self::Equal => (6, 5),
+            Self::Or => (10, 9),
+            Self::And => (12, 11),
+            Self::BangEqual | Self::EqualEqual => (14, 13),
+            Self::Less | Self::LessEqual | Self::Greater | Self::GreaterEqual => (16, 15),
+            Self::Plus | Self::Minus => (16, 15),
+            Self::Star | Self::Slash => (18, 17),
+            Self::Is => (20, 19),
+            _ => return None,
+        })
+    }
+
+    pub fn prefix_binding_power(&self) -> Option<u8> {
+        Some(match self {
+            Self::Minus | Self::Bang => 30,
+            _ => return None,
+        })
+    }
 }

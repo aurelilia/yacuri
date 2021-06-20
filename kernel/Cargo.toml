@@ -12,18 +12,18 @@ logos = { version = "0.12.0", default-features = false, features = ["export_deri
 
 # SCHEDULING
 crossbeam-queue = { version = "0.3.2", default-features = false, features = ["alloc"] }
-conquer-once = { version = "0.2.0", default-features = false }
-futures-util = { version = "0.3.4", default-features = false, features = ["alloc"] }
+conquer-once = { version = "0.3.2", default-features = false }
+futures-util = { version = "0.3.15", default-features = false, features = ["alloc"] }
 
 # CORE KERNEL DEPENDENCIES / X86 DEPENDENCIES
-bootloader = { version = "0.9.8", features = ["map_physical_memory"]}
-spin = "0.5.2"
-volatile = "0.2.6"
-x86_64 = "0.14.2"
-uart_16550 = "0.2.0"
+bootloader = { version = "0.9.18", features = ["map_physical_memory"]}
+spin = "0.9.0"
+volatile = "0.3.0"
+x86_64 = "0.14.3"
+uart_16550 = "0.2.15"
 pic8259 = "0.10.1"
-pc-keyboard = "0.5.0"
-lazy_static = { version = "1.0", features = ["spin_no_std"]}
+pc-keyboard = "0.5.1"
+lazy_static = { version = "1.4", features = ["spin_no_std"]}
 linked_list_allocator = "0.9.0"
 
 [dependencies.fatfs]

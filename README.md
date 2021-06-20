@@ -9,6 +9,7 @@ Currently pretty early, most of the kernel fundamentals are based on [this great
 - Support for FAT filesystems attached via ATA PIO
 - Custom allocator
 - VGA text mode shell with a few commands (ls, cat, mkdir)
+- Basic async executor/runtime
 
 # Setup & Run
 

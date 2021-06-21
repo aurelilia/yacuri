@@ -7,7 +7,7 @@ edition = "2018"
 
 [dependencies]
 # PROGRAMM
-yacuri_lang = { path = "../lang", default-features = false }
+yacari = { path = "../lang", default-features = false }
 logos = { version = "0.12.0", default-features = false, features = ["export_derive"] }
 
 # SCHEDULING
@@ -30,7 +30,7 @@ linked_list_allocator = "0.9.0"
 # TODO: Change this back to upstream when PR #179 (or equivalent) hopefully gets merged
 [dependencies.bootloader]
 git = "https://github.com/anellie/bootloader"
-rev = "bb13a86f4b180e354702c91ecb9bc7afbb724ede"
+branch = "main"
 
 [dependencies.fatfs]
 git = "https://github.com/rafalh/rust-fatfs"
@@ -40,7 +40,7 @@ default-features = false
 
 [dev-dependencies]
 # Used for generating random values for disk write tests
-rand = {version = "0.8.4", default-features = false, features = ["small_rng"] }
+rand = { version = "0.8.4", default-features = false, features = ["small_rng"] }
 
 
 [[test]]

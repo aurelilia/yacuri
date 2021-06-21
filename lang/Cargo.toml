@@ -1,13 +1,17 @@
 [package]
-name = "yacuri_lang"
+name = "yacari"
 version = "0.1.0"
 authors = ["Ellie Ang. <git@angm.xyz>"]
 edition = "2018"
 
 
 [dependencies]
-# Enable no_std support (disable std feature)
 logos = { version = "0.12.0", default-features = false, features = ["export_derive"] }
+enum-methods = "0.0.8"
+rustc-hash = { version = "1.1.0", default-features = false }
+smallvec = "1.6.1"
+string-interner = { version = "0.12.1", default-features = false }
+
 
 [features]
 default = ["std"]

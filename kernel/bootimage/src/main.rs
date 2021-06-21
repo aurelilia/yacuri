@@ -1,9 +1,8 @@
 use std::{
     path::{Path, PathBuf},
-    process::Command,
+    process::{Command, ExitStatus},
+    time::Duration,
 };
-use std::process::ExitStatus;
-use std::time::Duration;
 
 const RUN_ARGS: &[&str] = &[
     "--no-reboot", "-s",

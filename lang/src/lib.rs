@@ -13,6 +13,7 @@ use alloc::vec::Vec;
 
 mod compiler;
 mod error;
+mod ir;
 mod lexer;
 mod parser;
 mod smol_str;

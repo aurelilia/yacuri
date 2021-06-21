@@ -1,4 +1,4 @@
-mod ast;
+pub mod ast;
 
 use crate::{
     error::{Error, Error::E101, Res},
@@ -9,6 +9,7 @@ use crate::{
 use alloc::vec::Vec;
 pub use ast::Module;
 use core::{mem, str::FromStr};
+use alloc::boxed::Box;
 
 pub struct Parser<'src> {
     lexer: Lexer<'src>,
@@ -80,11 +81,11 @@ impl<'src> Parser<'src> {
         self.consume(Equal)?;
         let value = self.expression()?;
         Ok(AExpr {
-            ty: box EExpr::Variable {
+            ty: Box::new(EExpr::Variable {
                 final_,
                 name: name.lex,
                 value,
-            },
+            }),
             start: name.start,
         })
     }
@@ -105,7 +106,7 @@ impl<'src> Parser<'src> {
         }
         self.consume(RightBrace)?;
         Ok(AExpr {
-            ty: box EExpr::Block(exprs),
+            ty: Box::new(EExpr::Block(exprs)),
             start: brace.start,
         })
     }
@@ -122,7 +123,7 @@ impl<'src> Parser<'src> {
             None
         };
         Ok(AExpr {
-            ty: box EExpr::If { cond, then, els },
+            ty: Box::new(EExpr::If { cond, then, els }),
             start,
         })
     }
@@ -139,11 +140,11 @@ impl<'src> Parser<'src> {
             let right = self.binary(rbp)?;
             expr = AExpr {
                 start: expr.start,
-                ty: box EExpr::Binary {
+                ty: Box::new(EExpr::Binary {
                     left: expr,
                     op,
                     right,
-                },
+                }),
             };
         }
 
@@ -156,7 +157,7 @@ impl<'src> Parser<'src> {
             let right = self.binary(rbp)?;
             Ok(AExpr {
                 start: op.start,
-                ty: box EExpr::Unary { op, right },
+                ty: Box::new(EExpr::Unary { op, right }),
             })
         } else {
             self.call()
@@ -180,7 +181,7 @@ impl<'src> Parser<'src> {
                     self.consume(RightParen)?;
                     expr = AExpr {
                         start: expr.start,
-                        ty: box EExpr::Call { callee: expr, args },
+                        ty: Box::new(EExpr::Call { callee: expr, args }),
                     }
                 }
 
@@ -193,29 +194,29 @@ impl<'src> Parser<'src> {
     fn primary(&mut self) -> Res<AExpr> {
         match self.current.kind {
             False => Ok(AExpr {
-                ty: box EExpr::Literal(Literal::Bool(false)),
+                ty: Box::new(EExpr::Literal(Literal::Bool(false))),
                 start: self.advance().start,
             }),
             True => Ok(AExpr {
-                ty: box EExpr::Literal(Literal::Bool(true)),
+                ty: Box::new(EExpr::Literal(Literal::Bool(true))),
                 start: self.advance().start,
             }),
             String => Ok(AExpr {
                 start: self.current.start,
-                ty: box EExpr::Literal(Literal::String(self.advance().lex)),
+                ty: Box::new(EExpr::Literal(Literal::String(self.advance().lex))),
             }),
             Int => Ok(AExpr {
-                ty: box EExpr::Literal(Literal::Int(i64::from_str(&self.current.lex).unwrap())),
+                ty: Box::new(EExpr::Literal(Literal::Int(i64::from_str(&self.current.lex).unwrap()))),
                 start: self.advance().start,
             }),
             Float => Ok(AExpr {
-                ty: box EExpr::Literal(Literal::Float(f64::from_str(&self.current.lex).unwrap())),
+                ty: Box::new(EExpr::Literal(Literal::Float(f64::from_str(&self.current.lex).unwrap()))),
                 start: self.advance().start,
             }),
 
             Identifier => Ok(AExpr {
                 start: self.current.start,
-                ty: box EExpr::Identifier(self.advance()),
+                ty: Box::new(EExpr::Identifier(self.advance())),
             }),
             LeftParen => {
                 self.advance();

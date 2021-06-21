@@ -1,9 +1,6 @@
-#![feature(box_syntax)]
 #![no_std]
 
 extern crate alloc;
-#[cfg(feature = "std")]
-extern crate std;
 
 use crate::{
     error::Error,

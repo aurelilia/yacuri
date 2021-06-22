@@ -11,6 +11,6 @@ enum-methods = "0.0.8"
 rustc-hash = { version = "1.1.0", default-features = false }
 smallvec = "1.6.1"
 hashbrown = "0.11.2"
-asm = { path = "asm/" }
-memmap = "*"
-libc = "0.2.97"
+
+cranelift-jit = { path = "cranelift/jit", version = "0.75.0", default-features = false }
+cranelift-module = { path = "cranelift/module", version = "0.75.0", default-features = false }

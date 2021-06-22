@@ -3,5 +3,4 @@ members = [
     "kernel",
     "kernel/bootimage",
     "lang",
-    "lang/asm",
 ]

@@ -23,6 +23,8 @@ Additionally, `cargo krun` currently requires OVMF UEFI firmware. If the path
 of yours differs, modify `RUN_ARGS`  and `TEST_ARGS` in `kernel/bootimage/src/main.rs`.
 (TODO: Maybe package the firmware? this is not a solution.)
 
+Finally, make sure you clone git submodules with `git submodule init` followed by `git submodule update`.
+
 ```bash 
 # Execute in QEMU
 cd kernel; cargo krun

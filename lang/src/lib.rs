@@ -17,7 +17,6 @@ mod lexer;
 mod parser;
 mod smol_str;
 mod vm;
-pub mod asm;
 
 pub fn execute_program(program: &str) -> Result<Module, Errors> {
     let parse = Parser::new(program).parse()?;

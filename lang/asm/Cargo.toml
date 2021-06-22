@@ -1,5 +1,0 @@
-[package]
-name = "asm"
-version = "0.0.1"
-authors = ["Dominik Inführ <dominik.infuehr@gmail.com>", "Ellie Ang. <git@angm.xyz>"]
-edition = "2018"

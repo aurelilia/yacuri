@@ -178,4 +178,18 @@ impl TKind {
             _ => return None,
         })
     }
+
+    pub fn is_binary_logic(&self) -> bool {
+        match self {
+            TKind::EqualEqual
+            | TKind::BangEqual
+            | TKind::Less
+            | TKind::LessEqual
+            | TKind::Greater
+            | TKind::GreaterEqual
+            | TKind::And
+            | TKind::Or => true,
+            _ => false,
+        }
+    }
 }

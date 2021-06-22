@@ -1,12 +1,38 @@
-use crate::lexer::TKind;
+use crate::{lexer::TKind, smol_str::SmolStr};
+use alloc::{string::String, vec::Vec};
 use core::fmt::Display;
 
 pub type Res<T> = Result<T, Error>;
+pub type Errors = Vec<Error>;
 
 #[derive(Debug)]
-pub enum Error {
+pub struct Error {
+    kind: ErrorKind,
+    start: usize,
+}
+
+impl Error {
+    pub fn new(start: usize, kind: ErrorKind) -> Self {
+        Self { start, kind }
+    }
+}
+
+#[derive(Debug)]
+pub enum ErrorKind {
+    // Expected '{}', found '{}'.
     E100 { expected: TKind, found: TKind },
+    // Expected expression.
     E101,
+
+    // Cannot find type '{}'.
+    E200(SmolStr),
+    // Name '{}' already used.
+    E201(SmolStr),
+
+    // L/R side of binary expression must have same type (left is '{}', right is '{}')
+    E500 { left: String, right: String },
+    // Operator '{}' not applicable to type '{}'.
+    E501 { op: SmolStr, ty: String },
 }
 
 impl Display for Error {

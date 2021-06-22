@@ -8,25 +8,25 @@ pub struct Module {
 
 #[derive(Debug)]
 pub struct Function {
-    pub name: SmolStr,
+    pub name: Token,
     pub params: Vec<Parameter>,
-    pub ret_type: Option<AType>,
-    pub body: AExpr,
+    pub ret_type: Option<Type>,
+    pub body: Expr,
 }
 
 #[derive(Debug)]
 pub struct Parameter {
     pub name: SmolStr,
-    pub ty: AType,
+    pub ty: Type,
 }
 
 #[derive(Debug)]
-pub struct AType {
-    pub name: SmolStr,
+pub struct Type {
+    pub name: Token,
 }
 
 #[derive(Debug)]
-pub struct AExpr {
+pub struct Expr {
     pub ty: Box<EExpr>, // TODO use a bump allocator ideally
     pub start: usize,
 }
@@ -40,40 +40,40 @@ pub enum EExpr {
     Variable {
         final_: bool,
         name: SmolStr,
-        value: AExpr,
+        value: Expr,
     },
 
-    Block(Vec<AExpr>),
+    Block(Vec<Expr>),
 
     If {
-        cond: AExpr,
-        then: AExpr,
-        els: Option<AExpr>,
+        cond: Expr,
+        then: Expr,
+        els: Option<Expr>,
     },
 
     While {
-        cond: AExpr,
-        body: AExpr,
+        cond: Expr,
+        body: Expr,
     },
 
     Binary {
-        left: AExpr,
+        left: Expr,
         op: Token,
-        right: AExpr,
+        right: Expr,
     },
 
     Unary {
         op: Token,
-        right: AExpr,
+        right: Expr,
     },
 
     Call {
-        callee: AExpr,
-        args: Vec<AExpr>,
+        callee: Expr,
+        args: Vec<Expr>,
     },
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum Literal {
     Bool(bool),
     Int(i64),

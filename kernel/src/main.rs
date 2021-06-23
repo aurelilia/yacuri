@@ -16,6 +16,7 @@ use yacuri::{
     graphics::init_graphics,
     hlt_loop, kprintln, println,
     scheduling::{executor::Executor, task::Task},
+    vm
 };
 
 entry_point!(kernel_main);
@@ -40,6 +41,7 @@ fn init_memory(boot_info: &'static BootInfo) {
     let mut mapper = unsafe { memory::init(phys_mem_offset) };
     let mut frame_allocator = unsafe { BootInfoFrameAllocator::init(&boot_info.memory_regions) };
     allocator::init_heap(&mut mapper, &mut frame_allocator).expect("heap initialization failed");
+    vm::init_code_heap(&mut mapper, &mut frame_allocator).expect("vm heap initialization failed");
 }
 
 #[cfg(not(test))]

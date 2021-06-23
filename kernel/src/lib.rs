@@ -19,6 +19,7 @@ pub mod drivers;
 pub mod graphics;
 pub mod scheduling;
 pub mod shell;
+pub mod vm;
 
 use crate::drivers::interrupts::{gdt, interrupts};
 #[cfg(test)]

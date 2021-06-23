@@ -14,3 +14,8 @@ hashbrown = "0.11.2"
 
 cranelift-jit = { path = "cranelift/jit", version = "0.75.0", default-features = false }
 cranelift-module = { path = "cranelift/module", version = "0.75.0", default-features = false }
+
+[features]
+default = ["std"]
+std = ["cranelift-jit/std"]
+core = ["cranelift-jit/core"]

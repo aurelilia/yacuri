@@ -7,7 +7,7 @@ edition = "2018"
 
 [dependencies]
 # PROGRAMM
-yacari = { path = "../lang", default-features = false }
+yacari = { path = "../lang", default-features = false, features = ["core"] }
 logos = { version = "0.12.0", default-features = false, features = ["export_derive"] }
 
 # SCHEDULING

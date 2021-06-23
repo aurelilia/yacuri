@@ -10,6 +10,9 @@ use crate::{
 };
 use alloc::vec::Vec;
 
+#[cfg(feature = "core")]
+pub use cranelift_jit::{MemoryManager, set_manager};
+
 mod compiler;
 mod error;
 mod ir;

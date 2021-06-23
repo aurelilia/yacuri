@@ -48,7 +48,7 @@ impl<'e> ExprCompiler<'e> {
                             ty: lty.to_string(),
                         },
                     ),
-                    _ => ()
+                    _ => (),
                 }
 
                 Expr::binary(left, op.clone(), right)

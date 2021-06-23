@@ -145,5 +145,5 @@ pub enum IExpr {
 
     Literal(Literal),
 
-    Block(Vec<Expr>)
+    Block(Vec<Expr>),
 }

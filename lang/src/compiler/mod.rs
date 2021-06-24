@@ -1,19 +1,13 @@
 mod expr_compiler;
+pub mod ir;
 mod passes;
 mod resolver;
 
-use crate::{
-    compiler::expr_compiler::ExprCompiler,
-    error::Errors,
-    ir::{LocalVar, Module},
-    parser::ast,
-    smol_str::SmolStr,
-};
+use crate::{error::Errors, parser::ast};
 use alloc::{rc::Rc, vec::Vec};
 use core::cell::RefCell;
-use hashbrown::{HashMap, HashSet};
-
-type MutRc<T> = Rc<RefCell<T>>;
+use hashbrown::HashSet;
+use ir::Module;
 
 pub struct Compiler {
     module: Module,

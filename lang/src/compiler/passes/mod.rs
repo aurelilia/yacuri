@@ -1,7 +1,10 @@
 use crate::{
-    compiler::{expr_compiler::ExprCompiler, Compiler},
+    compiler::{
+        expr_compiler::ExprCompiler,
+        ir::{Expr, Function, FunctionBody, LocalVar, Type},
+        Compiler,
+    },
     error::Res,
-    ir::{Expr, Function, FunctionBody, LocalVar, Type},
 };
 use alloc::{rc::Rc, vec::Vec};
 use core::{cell::RefCell, mem};
@@ -10,22 +13,24 @@ use smallvec::SmallVec;
 impl Compiler {
     pub fn run_passes(&mut self) {
         self.declare_functions().unwrap();
-        self.generate_functions();
+        self.generate_functions().unwrap();
     }
 
     fn declare_functions(&mut self) -> Res<()> {
         let ast_fns = mem::replace(&mut self.module.ast.functions, Vec::new());
         for func in ast_fns {
             self.module
-                .try_reserve_name(&func.name.lex, func.name.start);
+                .try_reserve_name(&func.name.lex, func.name.start)?;
 
             let params = func
                 .params
                 .iter()
-                .map(|param| {
+                .enumerate()
+                .map(|(index, param)| {
                     Ok(Rc::new(LocalVar {
                         ty: self.resolve_ty(&param.ty)?,
                         name: param.name.clone(),
+                        index,
                     }))
                 })
                 .collect::<Res<SmallVec<_>>>()?;
@@ -38,7 +43,7 @@ impl Compiler {
             self.module.funcs.push(Function {
                 name: func.name.lex.clone(),
                 body: RefCell::new(FunctionBody {
-                    locals: SmallVec::from(params.as_slice()),
+                    locals: SmallVec::new(),
                     body: Expr::poison(),
                 }),
                 params,

@@ -1,11 +1,12 @@
 use crate::{
-    compiler::{Compiler, MutRc},
+    compiler::{
+        ir::{Expr, Function, LocalVar},
+        Compiler,
+    },
     error::{
         ErrorKind,
         ErrorKind::{E500, E501},
-        Errors, Res,
     },
-    ir::{Expr, Function, LocalVar, Type},
     parser::{ast, ast::EExpr},
     smol_str::SmolStr,
 };
@@ -72,7 +73,7 @@ impl<'e> ExprCompiler<'e> {
         }
     }
 
-    fn err(&self, pos: usize, err: ErrorKind) {
+    fn err(&self, _pos: usize, _err: ErrorKind) {
         // self.compiler.errors
     }
 

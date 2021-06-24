@@ -1,7 +1,6 @@
 use crate::{
-    compiler::Compiler,
+    compiler::{ir::Type, Compiler},
     error::{Error, ErrorKind::E200, Res},
-    ir::Type,
     parser::ast,
     smol_str::SmolStr,
 };

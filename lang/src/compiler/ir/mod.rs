@@ -1,15 +1,11 @@
 use crate::{
-    error::{Error, ErrorKind, ErrorKind::E201, Res},
-    lexer::{TKind, Token},
+    error::{Error, ErrorKind::E201, Res},
+    lexer::Token,
     parser::{ast, ast::Literal},
     smol_str::SmolStr,
 };
 use alloc::{boxed::Box, rc::Rc};
-use core::{
-    cell::{Cell, RefCell},
-    fmt,
-    fmt::Display,
-};
+use core::{cell::RefCell, fmt, fmt::Display};
 use hashbrown::HashSet;
 use smallvec::{
     alloc::{fmt::Formatter, vec::Vec},
@@ -52,6 +48,7 @@ pub struct FunctionBody {
 pub struct LocalVar {
     pub ty: Type,
     pub name: SmolStr,
+    pub index: usize,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -64,6 +61,10 @@ pub enum Type {
 }
 
 impl Type {
+    pub fn is_int(&self) -> bool {
+        *self == Type::I64 || *self == Type::Poison
+    }
+
     pub fn allow_math(&self) -> bool {
         *self == Type::I64 || *self == Type::F64 || *self == Type::Poison
     }

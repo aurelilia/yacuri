@@ -33,6 +33,8 @@ pub enum ErrorKind {
     E500 { left: String, right: String },
     // Operator '{}' not applicable to type '{}'.
     E501 { op: SmolStr, ty: String },
+    // If condition must be of type bool
+    E502,
 }
 
 impl Display for Error {

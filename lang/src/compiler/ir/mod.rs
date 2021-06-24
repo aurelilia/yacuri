@@ -87,6 +87,10 @@ pub struct Expr {
 }
 
 impl Expr {
+    pub fn zero() -> Expr {
+        Self::new(IExpr::Literal(Literal::Int(0)))
+    }
+
     pub fn poison() -> Expr {
         Self::new(IExpr::Poison)
     }
@@ -101,6 +105,15 @@ impl Expr {
 
     pub fn block(exprs: Vec<Expr>) -> Expr {
         Self::new(IExpr::Block(exprs))
+    }
+
+    pub fn if_(cond: Expr, then: Expr, els: Option<Expr>) -> Expr {
+        Self::new(IExpr::If {
+            phi: els.is_some() && then.typ() == els.as_ref().unwrap().typ(),
+            cond,
+            then,
+            els: els.unwrap_or_else(|| Self::zero()),
+        })
     }
 
     pub fn typ(&self) -> Type {
@@ -127,6 +140,9 @@ impl Expr {
             IExpr::Literal(_) => unimplemented!(),
 
             IExpr::Block(expr) => expr.last().map(|e| e.typ()).unwrap_or(Type::Void),
+
+            IExpr::If { phi, .. } if !phi => Type::Void,
+            IExpr::If { then, .. } => then.get_type(),
         }
     }
 
@@ -142,9 +158,20 @@ impl Expr {
 pub enum IExpr {
     Poison,
 
-    Binary { left: Expr, op: Token, right: Expr },
+    Binary {
+        left: Expr,
+        op: Token,
+        right: Expr,
+    },
 
     Literal(Literal),
 
     Block(Vec<Expr>),
+
+    If {
+        cond: Expr,
+        then: Expr,
+        els: Expr,
+        phi: bool,
+    },
 }

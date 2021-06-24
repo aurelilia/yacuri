@@ -1,11 +1,11 @@
 use crate::{
     compiler::{
-        ir::{Expr, Function, LocalVar},
+        ir::{Expr, Function, LocalVar, Type},
         Compiler,
     },
     error::{
         ErrorKind,
-        ErrorKind::{E500, E501},
+        ErrorKind::{E500, E501, E502},
     },
     parser::{ast, ast::EExpr},
     smol_str::SmolStr,
@@ -60,10 +60,20 @@ impl<'e> ExprCompiler<'e> {
                 Expr::block(exprs)
             }
 
+            EExpr::If { cond, then, els } => {
+                let condition = self.expr(cond);
+                if condition.typ() != Type::Bool {
+                    self.err(cond.start, E502);
+                }
+
+                let then = self.expr(then);
+                let els = els.as_ref().map(|e| self.expr(e));
+                Expr::if_(condition, then, els)
+            }
+
             /*
             EExpr::Identifier(_) => {}
             EExpr::Variable { .. } => {}
-            EExpr::If { .. } => {}
             EExpr::While { .. } => {}
             EExpr::Binary { .. } => {}
             EExpr::Unary { .. } => {}

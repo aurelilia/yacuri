@@ -25,7 +25,7 @@ impl<'b> FnTranslator<'b> {
     }
 
     fn init(&mut self) {
-        let entry = self.new_block();
+        let entry = self.switch_new_block();
         self.cl.append_block_params_for_function_params(entry);
         self.cl.seal_block(entry);
         self.declare_variables();
@@ -70,9 +70,18 @@ impl<'b> FnTranslator<'b> {
     fn new_block(&mut self) -> Block {
         let block = self.cl.create_block();
         self.blocks.push(block);
+        block
+    }
+
+    fn switch_new_block(&mut self) -> Block {
+        let block = self.new_block();
+        self.switch_block(block);
+        block
+    }
+
+    fn switch_block(&mut self, block: Block) {
         self.cl.switch_to_block(block);
         self.current_block = block;
-        block
     }
 
     pub fn new(

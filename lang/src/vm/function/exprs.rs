@@ -4,7 +4,8 @@ use crate::{
     parser::ast::Literal,
     vm::{
         function::FnTranslator,
-        typesys::{value, CValue},
+        typesys,
+        typesys::{value, values, CValue},
     },
 };
 use cranelift::prelude::*;
@@ -24,7 +25,35 @@ impl<'b> FnTranslator<'b> {
                 value.unwrap()
             }
 
+            IExpr::If {
+                cond,
+                then,
+                els,
+                phi,
+            } => self.if_(cond, *phi, then, els),
+
             IExpr::Poison => panic!("Cannot translate poison values!"),
+        }
+    }
+
+    fn br(&mut self, cond: Value, then: Block, els: Block) {
+        self.cl.ins().brz(cond, els, &[]);
+        self.cl.ins().jump(then, &[]);
+    }
+
+    fn set_cont_params(&mut self, phi: bool, cont: Block, typ: &ir::Type) {
+        if phi {
+            typesys::translate_type(typ, |_, ty| {
+                self.cl.append_block_param(cont, ty);
+            });
+        }
+    }
+
+    fn jump_cont(&mut self, cont: Block, phi: bool, value: CValue) {
+        if phi {
+            self.cl.ins().jump(cont, &value);
+        } else {
+            self.cl.ins().jump(cont, &[]);
         }
     }
 
@@ -58,6 +87,30 @@ impl<'b> FnTranslator<'b> {
             Literal::Float(float) => self.cl.ins().f64const(*float),
             Literal::String(_) => unimplemented!(),
         }
+    }
+
+    fn if_(&mut self, cond: &ir::Expr, phi: bool, then: &ir::Expr, els: &ir::Expr) -> CValue {
+        let condition = self.trans_expr(cond);
+        let then_b = self.new_block();
+        let else_b = self.new_block();
+        let cont_b = self.new_block();
+
+        self.set_cont_params(phi, cont_b, &then.typ());
+        self.br(condition[0], then_b, else_b);
+
+        self.switch_block(then_b);
+        self.cl.seal_block(then_b);
+        let then_val = self.trans_expr(then);
+        self.jump_cont(cont_b, phi, then_val);
+
+        self.switch_block(else_b);
+        self.cl.seal_block(else_b);
+        let els_val = self.trans_expr(els);
+        self.jump_cont(cont_b, phi, els_val);
+
+        self.switch_block(cont_b);
+        self.cl.seal_block(cont_b);
+        values(self.cl.block_params(cont_b))
     }
 }
 

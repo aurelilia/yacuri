@@ -28,12 +28,61 @@ pub fn execute_program<T>(program: &str) -> Result<T, Errors> {
 #[cfg(test)]
 mod test {
     use crate::execute_program;
-
     extern crate std;
+    use core::fmt::Debug;
+    use std::format;
+
+    fn expr<T: Debug + PartialEq>(input: &str, ret_type: &str, expect: T) {
+        let res =
+            execute_program::<T>(&format!("fun main() {} {{ {} }}", ret_type, input)).unwrap();
+        assert_eq!(res, expect)
+    }
+
+    fn nothing(input: &str) {
+        expr(input, "", ())
+    }
+    fn bool_(input: &str, expect: bool) {
+        expr(input, "-> bool", expect)
+    }
+    fn i64_(input: &str, expect: i64) {
+        expr(input, "-> i64", expect)
+    }
 
     #[test]
-    fn basic() {
-        let code = "fun main() -> i64 { 5 + 37 }";
-        assert_eq!(execute_program::<usize>(code).unwrap(), 42);
+    fn binary() {
+        i64_("5 + 37", 42);
+        i64_("3 - 2", 1);
+        i64_("5 * 2", 10);
+        i64_("64 / 8", 8);
+    }
+
+    #[test]
+    fn logic() {
+        bool_("5 == 5", true);
+        bool_("5 != 5", false);
+        bool_("5 == 7", false);
+        bool_("5 != 7", true);
+
+        bool_("5 <= 5", true);
+        bool_("5 < 5", false);
+        bool_("5 >= 5", true);
+        bool_("5 > 5", false);
+
+        bool_("5 <= 7", true);
+        bool_("5 < 7", true);
+        bool_("5 >= 7", false);
+        bool_("5 > 7", false);
+    }
+
+    #[test]
+    fn if_stmt() {
+        nothing("if (true) 35");
+        nothing("if (false) 35.42 else 0");
+    }
+
+    #[test]
+    fn if_expr() {
+        i64_("if (true) 35 else 0", 35);
+        i64_("if (false) 35 else 0", 0);
     }
 }

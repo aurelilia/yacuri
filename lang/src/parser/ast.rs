@@ -39,7 +39,7 @@ pub enum EExpr {
 
     Variable {
         final_: bool,
-        name: SmolStr,
+        name: Token,
         value: Expr,
     },
 

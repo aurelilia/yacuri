@@ -5,21 +5,22 @@ use crate::{
     },
     error::{
         ErrorKind,
-        ErrorKind::{E500, E501, E502},
+        ErrorKind::{E500, E501, E502, E503, E504, E505},
     },
+    lexer::TKind,
     parser::{ast, ast::EExpr},
     smol_str::SmolStr,
 };
 use alloc::{rc::Rc, string::ToString, vec, vec::Vec};
 use hashbrown::HashMap;
 
-type Environment = HashMap<SmolStr, Rc<LocalVar>>;
+type Environment<'e> = HashMap<SmolStr, &'e LocalVar>;
 
 pub struct ExprCompiler<'e> {
     function: &'e Function,
     compiler: &'e Compiler,
 
-    environments: Vec<Environment>,
+    environments: Vec<Environment<'e>>,
 }
 
 impl<'e> ExprCompiler<'e> {
@@ -42,6 +43,15 @@ impl<'e> ExprCompiler<'e> {
                             right: rty.to_string(),
                         },
                     ),
+
+                    _ if op.kind == TKind::Equal => {
+                        // Assignment
+                        if !left.assignable() {
+                            self.err(op.start, E505)
+                        }
+                        return Expr::assign(left, right);
+                    }
+
                     _ if (logic && !lty.allow_logic()) || !logic && !lty.allow_math() => self.err(
                         op.start,
                         E501 {
@@ -49,6 +59,7 @@ impl<'e> ExprCompiler<'e> {
                             ty: lty.to_string(),
                         },
                     ),
+
                     _ => (),
                 }
 
@@ -56,7 +67,9 @@ impl<'e> ExprCompiler<'e> {
             }
 
             EExpr::Block(exprs) => {
+                self.begin_scope();
                 let exprs = exprs.iter().map(|e| self.expr(e)).collect();
+                self.end_scope();
                 Expr::block(exprs)
             }
 
@@ -71,9 +84,38 @@ impl<'e> ExprCompiler<'e> {
                 Expr::if_(condition, then, els)
             }
 
+            EExpr::Identifier(ident) => {
+                let local = self.find_local(&ident.lex);
+                if let Some(local) = local {
+                    Expr::local(local)
+                } else {
+                    self.err(
+                        ident.start,
+                        E503 {
+                            name: ident.lex.clone(),
+                        },
+                    );
+                    Expr::poison()
+                }
+            }
+
+            EExpr::Variable {
+                final_,
+                name,
+                value,
+            } => {
+                let value = self.expr(value);
+                let ty = value.typ();
+                if !ty.allow_assignment() {
+                    self.err(name.start, E504 { ty: ty.to_string() })
+                }
+
+                let local = self.function.add_local(name.lex.clone(), ty);
+                self.add_to_scope(local);
+                Expr::assign_local(local, value)
+            }
+
             /*
-            EExpr::Identifier(_) => {}
-            EExpr::Variable { .. } => {}
             EExpr::While { .. } => {}
             EExpr::Binary { .. } => {}
             EExpr::Unary { .. } => {}
@@ -87,6 +129,30 @@ impl<'e> ExprCompiler<'e> {
         // self.compiler.errors
     }
 
+    fn find_local(&self, name: &str) -> Option<&LocalVar> {
+        self.environments
+            .iter()
+            .rev()
+            .filter_map(|env| env.get(name))
+            .next()
+            .copied()
+    }
+
+    fn add_to_scope(&mut self, var: &'e LocalVar) {
+        self.environments
+            .last_mut()
+            .unwrap()
+            .insert(var.name.clone(), var);
+    }
+
+    fn begin_scope(&mut self) {
+        self.environments.push(HashMap::new());
+    }
+
+    fn end_scope(&mut self) {
+        self.environments.pop();
+    }
+
     pub fn new(compiler: &'e Compiler, function: &'e Function) -> Self {
         ExprCompiler {
             function,
@@ -94,7 +160,7 @@ impl<'e> ExprCompiler<'e> {
             environments: vec![function
                 .params
                 .iter()
-                .map(|p| (p.name.clone(), p.clone()))
+                .map(|p| (p.name.clone(), p))
                 .collect()],
         }
     }

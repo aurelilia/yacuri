@@ -32,16 +32,41 @@ impl Module {
 #[derive(Debug)]
 pub struct Function {
     pub name: SmolStr,
-    pub params: SmallVec<[Rc<LocalVar>; 4]>,
+    pub params: SmallVec<[LocalVar; 4]>,
     pub ret_type: Type,
-    pub body: RefCell<FunctionBody>,
+    pub locals: SmallVec<[LocalVar; 6]>,
+    pub body: RefCell<Expr>,
     pub ast: ast::Function,
 }
 
-#[derive(Debug)]
-pub struct FunctionBody {
-    pub locals: SmallVec<[Rc<LocalVar>; 6]>,
-    pub body: Expr,
+impl Function {
+    pub fn add_local(&self, name: SmolStr, ty: Type) -> &LocalVar {
+        let local = LocalVar {
+            ty,
+            name,
+            index: self.locals.len(),
+        };
+        unsafe {
+            self.unsafe_mut().locals.push(local);
+        }
+        self.locals.last().unwrap()
+    }
+
+    /// # Safety
+    /// This method allows getting a mutable reference from a immutable one.
+    /// Very unsafe!
+    /// The main usage of this method is `add_local`, where it is used
+    /// to append to the list of locals.
+    /// This is required to allow borrowing locals (see `src/compiler/expr_compiler.rs`) of the
+    /// function immutably (which a RefCell, for example, would make impossible).
+    ///
+    /// TODO: Is this even safe?! references are probably going to be invalid
+    /// if the vector has to reallocate since their memory location moves!!!
+    unsafe fn unsafe_mut(&self) -> &mut Self {
+        let ptr = self as *const Function;
+        let mutptr = ptr as *mut Function;
+        mutptr.as_mut().unwrap()
+    }
 }
 
 #[derive(Debug)]
@@ -71,6 +96,10 @@ impl Type {
 
     pub fn allow_logic(&self) -> bool {
         *self == Type::Bool || *self == Type::Poison
+    }
+
+    pub fn allow_assignment(&self) -> bool {
+        *self != Type::Void
     }
 }
 
@@ -116,6 +145,21 @@ impl Expr {
         })
     }
 
+    pub fn local(variable: &LocalVar) -> Expr {
+        Self::new(IExpr::Variable {
+            index: variable.index,
+            typ: variable.ty.clone(),
+        })
+    }
+
+    pub fn assign(store: Expr, value: Expr) -> Expr {
+        Self::new(IExpr::Assign { store, value })
+    }
+
+    pub fn assign_local(variable: &LocalVar, value: Expr) -> Expr {
+        Self::assign(Self::local(variable), value)
+    }
+
     pub fn typ(&self) -> Type {
         let mut cached = self.ty.borrow_mut();
         if let Some(ty) = &*cached {
@@ -127,12 +171,19 @@ impl Expr {
         }
     }
 
+    pub fn assignable(&self) -> bool {
+        match &*self.inner {
+            IExpr::Variable { .. } => true,
+            _ => false,
+        }
+    }
+
     fn get_type(&self) -> Type {
         match &*self.inner {
             IExpr::Poison => Type::Poison,
 
             IExpr::Binary { op, .. } if op.kind.is_binary_logic() => Type::Bool,
-            IExpr::Binary { left, .. } => left.get_type(),
+            IExpr::Binary { left, .. } => left.typ(),
 
             IExpr::Literal(Literal::Bool(_)) => Type::Bool,
             IExpr::Literal(Literal::Int(_)) => Type::I64,
@@ -142,7 +193,11 @@ impl Expr {
             IExpr::Block(expr) => expr.last().map(|e| e.typ()).unwrap_or(Type::Void),
 
             IExpr::If { phi, .. } if !phi => Type::Void,
-            IExpr::If { then, .. } => then.get_type(),
+            IExpr::If { then, .. } => then.typ(),
+
+            IExpr::Variable { typ, .. } => typ.clone(),
+
+            IExpr::Assign { value, .. } => value.typ(),
         }
     }
 
@@ -173,5 +228,15 @@ pub enum IExpr {
         then: Expr,
         els: Expr,
         phi: bool,
+    },
+
+    Variable {
+        index: usize,
+        typ: Type,
+    },
+
+    Assign {
+        store: Expr,
+        value: Expr,
     },
 }

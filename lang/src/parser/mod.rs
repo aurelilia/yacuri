@@ -71,7 +71,7 @@ impl<'src> Parser<'src> {
     }
 
     fn higher_expr(&mut self) -> Res<Expr> {
-        if self.matches_(&[Var, Val]) {
+        if self.check_(&[Var, Val]) {
             self.var_decl()
         } else {
             self.expression()
@@ -84,12 +84,12 @@ impl<'src> Parser<'src> {
         self.consume(Equal)?;
         let value = self.expression()?;
         Ok(Expr {
+            start: name.start,
             ty: Box::new(EExpr::Variable {
                 final_,
-                name: name.lex,
+                name,
                 value,
             }),
-            start: name.start,
         })
     }
 
@@ -250,16 +250,6 @@ impl<'src> Parser<'src> {
         }
     }
 
-    fn matches_(&mut self, kinds: &[TKind]) -> bool {
-        for kind in kinds {
-            if self.check(*kind) {
-                self.advance();
-                return true;
-            }
-        }
-        false
-    }
-
     fn consume(&mut self, kind: TKind) -> Res<Token> {
         if self.check(kind) {
             Ok(self.advance())
@@ -285,6 +275,15 @@ impl<'src> Parser<'src> {
 
     fn check(&mut self, kind: TKind) -> bool {
         self.current.kind == kind
+    }
+
+    fn check_(&mut self, kinds: &[TKind]) -> bool {
+        for kind in kinds {
+            if self.check(*kind) {
+                return true;
+            }
+        }
+        false
     }
 
     fn is_at_end(&self) -> bool {

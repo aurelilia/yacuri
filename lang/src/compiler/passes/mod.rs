@@ -1,7 +1,7 @@
 use crate::{
     compiler::{
         expr_compiler::ExprCompiler,
-        ir::{Expr, Function, FunctionBody, LocalVar, Type},
+        ir::{Expr, Function, LocalVar, Type},
         Compiler,
     },
     error::Res,
@@ -27,11 +27,11 @@ impl Compiler {
                 .iter()
                 .enumerate()
                 .map(|(index, param)| {
-                    Ok(Rc::new(LocalVar {
+                    Ok(LocalVar {
                         ty: self.resolve_ty(&param.ty)?,
                         name: param.name.clone(),
                         index,
-                    }))
+                    })
                 })
                 .collect::<Res<SmallVec<_>>>()?;
             let ret_type = func
@@ -42,11 +42,9 @@ impl Compiler {
 
             self.module.funcs.push(Function {
                 name: func.name.lex.clone(),
-                body: RefCell::new(FunctionBody {
-                    locals: SmallVec::new(),
-                    body: Expr::poison(),
-                }),
+                body: RefCell::new(Expr::poison()),
                 params,
+                locals: SmallVec::new(),
                 ret_type,
                 ast: func,
             })
@@ -58,7 +56,7 @@ impl Compiler {
         for func in &self.module.funcs {
             let mut compiler = ExprCompiler::new(self, func);
             let body = compiler.expr(&func.ast.body);
-            func.body.borrow_mut().body = body;
+            *func.body.borrow_mut() = body;
         }
         Ok(())
     }

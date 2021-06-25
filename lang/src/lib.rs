@@ -1,3 +1,4 @@
+#![feature(box_patterns)]
 #![no_std]
 
 extern crate alloc;
@@ -34,7 +35,7 @@ mod test {
 
     fn expr<T: Debug + PartialEq>(input: &str, ret_type: &str, expect: T) {
         let res =
-            execute_program::<T>(&format!("fun main() {} {{ {} }}", ret_type, input)).unwrap();
+            execute_program::<T>(&format!("fun main() {} {{ {} \n }}", ret_type, input)).unwrap();
         assert_eq!(res, expect)
     }
 
@@ -46,6 +47,11 @@ mod test {
     }
     fn i64_(input: &str, expect: i64) {
         expr(input, "-> i64", expect)
+    }
+
+    #[test]
+    fn block() {
+        i64_("5 + 5 \n  2 - 2 \n 1", 1);
     }
 
     #[test]
@@ -84,5 +90,17 @@ mod test {
     fn if_expr() {
         i64_("if (true) 35 else 0", 35);
         i64_("if (false) 35 else 0", 0);
+    }
+
+    #[test]
+    fn var_decl() {
+        i64_("val a = 44 \n a", 44);
+        i64_("var c = 24 + 1 \n c", 25);
+    }
+
+    #[test]
+    fn assignment() {
+        i64_("var a = 44 \n a = 4 \n a", 4);
+        i64_("var c = 24 + 1 \n c = c + 2 \n c", 27);
     }
 }

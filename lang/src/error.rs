@@ -29,12 +29,18 @@ pub enum ErrorKind {
     // Name '{}' already used.
     E201(SmolStr),
 
-    // L/R side of binary expression must have same type (left is '{}', right is '{}')
+    // L/R side of binary expression must have same type (left is '{}', right is '{}').
     E500 { left: String, right: String },
     // Operator '{}' not applicable to type '{}'.
     E501 { op: SmolStr, ty: String },
-    // If condition must be of type bool
+    // If condition must be of type bool.
     E502,
+    // Unknown variable '{}'.
+    E503 { name: SmolStr },
+    // Cannot assign type '{}' to a variable.
+    E504 { ty: String },
+    // Cannot assign to this.
+    E505,
 }
 
 impl Display for Error {

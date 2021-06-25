@@ -143,18 +143,18 @@ pub enum TKind {
     #[token("when")]
     When,
 
-    #[regex(r"/\*([^*]|\*+[^*/])*\*?")] // https://github.com/maciejhirsz/logos/issues/180
-    #[error]
-    Error,
-
     #[regex(r"//[^\n]*", logos::skip)]
     #[regex(r"/\*([^*]|\**[^*/])*\*+/", logos::skip)]
     Comment,
 
     #[regex(r"[ \t\f]+", logos::skip)]
     Whitespace,
-    #[token(r"[\n]+", logos::skip)]
+    #[token("\n", logos::skip)]
     Newline,
+
+    #[regex(r"/\*([^*]|\*+[^*/])*\*?")] // https://github.com/maciejhirsz/logos/issues/180
+    #[error]
+    Error,
 }
 
 impl TKind {
@@ -191,5 +191,23 @@ impl TKind {
             | TKind::Or => true,
             _ => false,
         }
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use crate::lexer::{Lexer, TKind, TKind::*};
+    use alloc::vec::Vec;
+
+    fn lex(input: &str, want: &[TKind]) {
+        let lexer = Lexer::new(input);
+        let out = lexer.map(|t| t.kind).collect::<Vec<_>>();
+        assert_eq!(want, &out);
+    }
+
+    #[test]
+    fn block() {
+        lex("{ 5 }", &[LeftBrace, Int, RightBrace]);
+        lex("{ 5 \n 5 }", &[LeftBrace, Int, Int, RightBrace]);
     }
 }

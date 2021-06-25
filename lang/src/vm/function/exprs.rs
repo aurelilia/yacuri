@@ -1,5 +1,8 @@
 use crate::{
-    compiler::{ir, ir::IExpr},
+    compiler::{
+        ir,
+        ir::{Expr, IExpr},
+    },
     lexer::TKind,
     parser::ast::Literal,
     vm::{
@@ -32,8 +35,19 @@ impl<'b> FnTranslator<'b> {
                 phi,
             } => self.if_(cond, *phi, then, els),
 
+            IExpr::Variable { index, typ } => self.variable_expr(*index, typ),
+
+            IExpr::Assign { store, value } => match &*store.inner {
+                IExpr::Variable { index, typ } => self.assign_var(*index, value, typ),
+                _ => panic!("Unknown assignment target!"),
+            },
+
             IExpr::Poison => panic!("Cannot translate poison values!"),
         }
+    }
+
+    fn variable(index: usize) -> Variable {
+        Variable::with_u32(index as u32)
     }
 
     fn br(&mut self, cond: Value, then: Block, els: Block) {
@@ -111,6 +125,29 @@ impl<'b> FnTranslator<'b> {
         self.switch_block(cont_b);
         self.cl.seal_block(cont_b);
         values(self.cl.block_params(cont_b))
+    }
+
+    fn variable_expr(&mut self, index: usize, typ: &ir::Type) -> smallvec::SmallVec<[Value; 3]> {
+        let offset = self.local_offsets[index];
+        let mut vals = CValue::new();
+        typesys::translate_type(typ, |i, _| {
+            vals.push(self.cl.use_var(Self::variable(offset + i)))
+        });
+        vals
+    }
+
+    fn assign_var(
+        &mut self,
+        index: usize,
+        value: &Expr,
+        typ: &ir::Type,
+    ) -> smallvec::SmallVec<[Value; 3]> {
+        let offset = self.local_offsets[index];
+        let value = self.trans_expr(value);
+        typesys::translate_type(typ, |i, _| {
+            self.cl.def_var(Self::variable(offset + i), value[i]);
+        });
+        value
     }
 }
 

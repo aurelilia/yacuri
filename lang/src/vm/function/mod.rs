@@ -20,7 +20,7 @@ pub struct FnTranslator<'b> {
 impl<'b> FnTranslator<'b> {
     pub fn build(&mut self) {
         self.init();
-        let ret = self.trans_expr(&self.func.body.borrow().body);
+        let ret = self.trans_expr(&self.func.body.borrow());
         self.cl.ins().return_(&ret);
     }
 
@@ -43,17 +43,16 @@ impl<'b> FnTranslator<'b> {
             self.declare_local(var);
             self.define_local(var, &params[self.local_offsets[var.index]..]);
         }
-        for var in self.func.body.borrow().locals.iter() {
+        for var in self.func.locals.iter() {
             self.declare_local(var);
         }
     }
 
     fn declare_local(&mut self, var: &ir::LocalVar) {
         let last_len = self.local_offsets[var.index];
-        let start_offset = self.local_offsets[var.index - 1] + last_len;
 
         let len = typesys::translate_type(&var.ty, |i, local| {
-            let var = Variable::new(start_offset + i);
+            let var = Variable::new(last_len + i);
             self.cl.declare_var(var, local);
         });
 

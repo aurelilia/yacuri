@@ -35,6 +35,8 @@ impl<'b> FnTranslator<'b> {
                 phi,
             } => self.if_(cond, *phi, then, els),
 
+            IExpr::While { cond, body } => self.while_expr(cond, body),
+
             IExpr::Variable { index, typ } => self.variable_expr(*index, typ),
 
             IExpr::Assign { store, value } => match &*store.inner {
@@ -127,6 +129,25 @@ impl<'b> FnTranslator<'b> {
         values(self.cl.block_params(cont_b))
     }
 
+    fn while_expr(&mut self, cond: &Expr, body: &Expr) -> CValue {
+        let head_b = self.new_block();
+        let body_b = self.new_block();
+        let cont_b = self.new_block();
+        self.cl.ins().jump(head_b, &[]);
+        self.switch_block(head_b);
+        let condition_value = self.trans_expr(cond)[0];
+        self.cl.ins().brz(condition_value, cont_b, &[]);
+        self.cl.ins().jump(body_b, &[]);
+        self.switch_block(body_b);
+        self.cl.seal_block(body_b);
+        self.trans_expr(body);
+        self.cl.ins().jump(head_b, &[]);
+        self.cl.switch_to_block(cont_b);
+        self.cl.seal_block(head_b);
+        self.cl.seal_block(cont_b);
+        value(self.cl.ins().iconst(types::I64, 0))
+    }
+    
     fn variable_expr(&mut self, index: usize, typ: &ir::Type) -> smallvec::SmallVec<[Value; 3]> {
         let offset = self.local_offsets[index];
         let mut vals = CValue::new();

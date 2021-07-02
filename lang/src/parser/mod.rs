@@ -97,6 +97,7 @@ impl<'src> Parser<'src> {
         match self.current.kind {
             LeftBrace => self.block(),
             If => self.if_expr(),
+            While => self.while_stmt(),
             _ => self.binary(0),
         }
     }
@@ -127,6 +128,18 @@ impl<'src> Parser<'src> {
         };
         Ok(Expr {
             ty: Box::new(EExpr::If { cond, then, els }),
+            start,
+        })
+    }
+
+    fn while_stmt(&mut self) -> Res<Expr> {
+        let start = self.advance().start;
+        self.consume(LeftParen)?;
+        let cond = self.expression()?;
+        self.consume(RightParen)?;
+        let body = self.expression()?;
+        Ok(Expr {
+            ty: Box::new(EExpr::While { cond, body }),
             start,
         })
     }

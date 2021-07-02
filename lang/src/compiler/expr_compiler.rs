@@ -84,6 +84,15 @@ impl<'e> ExprCompiler<'e> {
                 Expr::if_(condition, then, els)
             }
 
+            EExpr::While { cond, body } => {
+                let condition = self.expr(cond);
+                if condition.typ() != Type::Bool {
+                    self.err(cond.start, E502);
+                }
+                let body = self.expr(body);
+                Expr::while_(condition, body)
+            }
+
             EExpr::Identifier(ident) => {
                 let local = self.find_local(&ident.lex);
                 if let Some(local) = local {
@@ -116,8 +125,6 @@ impl<'e> ExprCompiler<'e> {
             }
 
             /*
-            EExpr::While { .. } => {}
-            EExpr::Binary { .. } => {}
             EExpr::Unary { .. } => {}
             EExpr::Call { .. } => {}
             */

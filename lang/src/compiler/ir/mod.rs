@@ -145,6 +145,10 @@ impl Expr {
         })
     }
 
+    pub fn while_(cond: Expr, body: Expr) -> Expr {
+        Self::new(IExpr::While { cond, body })
+    }
+
     pub fn local(variable: &LocalVar) -> Expr {
         Self::new(IExpr::Variable {
             index: variable.index,
@@ -195,6 +199,8 @@ impl Expr {
             IExpr::If { phi, .. } if !phi => Type::Void,
             IExpr::If { then, .. } => then.typ(),
 
+            IExpr::While { .. } => Type::Void,
+
             IExpr::Variable { typ, .. } => typ.clone(),
 
             IExpr::Assign { value, .. } => value.typ(),
@@ -228,6 +234,11 @@ pub enum IExpr {
         then: Expr,
         els: Expr,
         phi: bool,
+    },
+
+    While {
+        cond: Expr,
+        body: Expr,
     },
 
     Variable {

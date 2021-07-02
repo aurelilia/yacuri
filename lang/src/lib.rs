@@ -93,6 +93,12 @@ mod test {
     }
 
     #[test]
+    fn while_() {
+        i64_("var a = 3 \n while (a < 10) { a = a + 1 } \n a", 10);
+        i64_("var a = 3 \n while (a > 10) { a = a + 1 } \n a", 3);
+    }
+
+    #[test]
     fn var_decl() {
         i64_("val a = 44 \n a", 44);
         i64_("var c = 24 + 1 \n c", 25);

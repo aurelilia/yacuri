@@ -142,6 +142,8 @@ pub enum TKind {
     Val,
     #[token("when")]
     When,
+    #[token("while")]
+    While,
 
     #[regex(r"//[^\n]*", logos::skip)]
     #[regex(r"/\*([^*]|\**[^*/])*\*+/", logos::skip)]

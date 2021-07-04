@@ -8,7 +8,7 @@ use crate::{
     parser::{ast, ast::EExpr},
     smol_str::SmolStr,
 };
-use alloc::{rc::Rc, string::ToString, vec, vec::Vec};
+use alloc::{string::ToString, vec, vec::Vec};
 use hashbrown::HashMap;
 use smallvec::SmallVec;
 
@@ -120,7 +120,7 @@ impl<'e> ExprCompiler<'e> {
                     self.err(name.start, E504 { ty: ty.to_string() })
                 }
 
-                let local = self.function.add_local(name.lex.clone(), ty);
+                let local = self.function.add_local(name.lex.clone(), ty, !*final_);
                 self.add_to_scope(local);
                 Expr::assign_local(local, value)
             }

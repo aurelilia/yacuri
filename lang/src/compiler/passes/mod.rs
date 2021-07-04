@@ -6,7 +6,7 @@ use crate::{
     },
     error::Res,
 };
-use alloc::{rc::Rc, vec::Vec};
+use alloc::vec::Vec;
 use core::{cell::RefCell, mem};
 use smallvec::SmallVec;
 
@@ -31,6 +31,7 @@ impl Compiler {
                         ty: self.resolve_ty(&param.ty)?,
                         name: param.name.clone(),
                         index,
+                        mutable: false,
                     })
                 })
                 .collect::<Res<SmallVec<_>>>()?;

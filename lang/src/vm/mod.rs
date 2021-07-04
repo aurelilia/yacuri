@@ -14,6 +14,7 @@ use cranelift::{
 use cranelift_jit::{JITBuilder, JITModule};
 use cranelift_module::{DataContext, FuncId, Linkage, Module};
 
+#[allow(unused)]
 pub struct JIT {
     builder_context: FunctionBuilderContext,
     ctx: codegen::Context,

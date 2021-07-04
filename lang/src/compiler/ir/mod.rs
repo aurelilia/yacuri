@@ -4,7 +4,7 @@ use crate::{
     parser::{ast, ast::Literal},
     smol_str::SmolStr,
 };
-use alloc::{boxed::Box, rc::Rc};
+use alloc::boxed::Box;
 use core::{cell::RefCell, fmt, fmt::Display};
 use cranelift_module::FuncId;
 use hashbrown::HashSet;
@@ -42,11 +42,12 @@ pub struct Function {
 }
 
 impl Function {
-    pub fn add_local(&self, name: SmolStr, ty: Type) -> &LocalVar {
+    pub fn add_local(&self, name: SmolStr, ty: Type, mutable: bool) -> &LocalVar {
         let local = LocalVar {
             ty,
             name,
             index: self.locals.len(),
+            mutable,
         };
         unsafe {
             self.unsafe_mut().locals.push(local);
@@ -71,6 +72,7 @@ impl Function {
     }
 }
 
+#[allow(unused)]
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub enum FuncRef {
     // Function is in this module at contained index
@@ -93,6 +95,7 @@ pub struct LocalVar {
     pub ty: Type,
     pub name: SmolStr,
     pub index: usize,
+    pub mutable: bool,
 }
 
 #[derive(Debug, Clone, PartialEq)]

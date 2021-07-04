@@ -13,6 +13,7 @@ use smallvec::SmallVec;
 
 mod exprs;
 
+#[allow(unused)]
 pub struct FnTranslator<'b> {
     func: &'b ir::Function,
     cl: FunctionBuilder<'b>,

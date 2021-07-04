@@ -12,7 +12,7 @@ use crate::{
 };
 use alloc::vec::Vec;
 use cranelift::prelude::*;
-use cranelift_module::{Linkage, Module};
+use cranelift_module::Module;
 use smallvec::SmallVec;
 
 impl<'b> FnTranslator<'b> {
@@ -177,7 +177,6 @@ impl<'b> FnTranslator<'b> {
     }
 
     fn call(&mut self, callee: &Expr, args: &SmallVec<[Expr; 4]>) -> CValue {
-        let ir_callee = self.trans_expr(callee);
         let func_id = {
             let func = callee.typ().into_fn().resolve(self.ya_module);
             get_func_id(&mut self.ir_module, func)

@@ -4,8 +4,7 @@ mod passes;
 mod resolver;
 
 use crate::{error::Errors, parser::ast};
-use alloc::{rc::Rc, vec::Vec};
-use core::cell::RefCell;
+use alloc::vec::Vec;
 use hashbrown::HashSet;
 use ir::Module;
 

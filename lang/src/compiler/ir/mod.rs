@@ -6,6 +6,7 @@ use crate::{
 };
 use alloc::{boxed::Box, rc::Rc};
 use core::{cell::RefCell, fmt, fmt::Display};
+use cranelift_module::FuncId;
 use hashbrown::HashSet;
 use smallvec::{
     alloc::{fmt::Formatter, vec::Vec},
@@ -36,6 +37,7 @@ pub struct Function {
     pub ret_type: Type,
     pub locals: SmallVec<[LocalVar; 6]>,
     pub body: RefCell<Expr>,
+    pub ir: RefCell<Option<FuncId>>,
     pub ast: ast::Function,
 }
 
@@ -69,6 +71,23 @@ impl Function {
     }
 }
 
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+pub enum FuncRef {
+    // Function is in this module at contained index
+    Module(usize),
+    // Function is an import at contained index
+    Import(usize),
+}
+
+impl FuncRef {
+    pub fn resolve<'t>(&self, module: &'t Module) -> &'t Function {
+        match self {
+            FuncRef::Module(index) => &module.funcs[*index],
+            FuncRef::Import(_) => unimplemented!(),
+        }
+    }
+}
+
 #[derive(Debug)]
 pub struct LocalVar {
     pub ty: Type,
@@ -83,6 +102,8 @@ pub enum Type {
     Bool,
     I64,
     F64,
+
+    Function(FuncRef),
 }
 
 impl Type {
@@ -101,6 +122,13 @@ impl Type {
     pub fn allow_assignment(&self) -> bool {
         *self != Type::Void
     }
+
+    pub fn into_fn(self) -> FuncRef {
+        match self {
+            Self::Function(r) => r,
+            _ => panic!(),
+        }
+    }
 }
 
 impl Display for Type {
@@ -117,7 +145,7 @@ pub struct Expr {
 
 impl Expr {
     pub fn zero() -> Expr {
-        Self::new(IExpr::Literal(Literal::Int(0)))
+        Self::new(IExpr::Constant(Constant::Int(0)))
     }
 
     pub fn poison() -> Expr {
@@ -128,8 +156,8 @@ impl Expr {
         Self::new(IExpr::Binary { left, op, right })
     }
 
-    pub fn literal(lit: Literal) -> Expr {
-        Self::new(IExpr::Literal(lit))
+    pub fn constant(lit: Constant) -> Expr {
+        Self::new(IExpr::Constant(lit))
     }
 
     pub fn block(exprs: Vec<Expr>) -> Expr {
@@ -164,6 +192,10 @@ impl Expr {
         Self::assign(Self::local(variable), value)
     }
 
+    pub fn call(callee: Expr, args: SmallVec<[Expr; 4]>, ret_type: Type) -> Expr {
+        Self::with_typ(IExpr::Call { callee, args }, ret_type)
+    }
+
     pub fn typ(&self) -> Type {
         let mut cached = self.ty.borrow_mut();
         if let Some(ty) = &*cached {
@@ -189,10 +221,11 @@ impl Expr {
             IExpr::Binary { op, .. } if op.kind.is_binary_logic() => Type::Bool,
             IExpr::Binary { left, .. } => left.typ(),
 
-            IExpr::Literal(Literal::Bool(_)) => Type::Bool,
-            IExpr::Literal(Literal::Int(_)) => Type::I64,
-            IExpr::Literal(Literal::Float(_)) => Type::F64,
-            IExpr::Literal(_) => unimplemented!(),
+            IExpr::Constant(Constant::Bool(_)) => Type::Bool,
+            IExpr::Constant(Constant::Int(_)) => Type::I64,
+            IExpr::Constant(Constant::Float(_)) => Type::F64,
+            IExpr::Constant(Constant::String(_)) => unimplemented!(),
+            IExpr::Constant(Constant::Function(f)) => Type::Function(*f),
 
             IExpr::Block(expr) => expr.last().map(|e| e.typ()).unwrap_or(Type::Void),
 
@@ -204,6 +237,8 @@ impl Expr {
             IExpr::Variable { typ, .. } => typ.clone(),
 
             IExpr::Assign { value, .. } => value.typ(),
+
+            IExpr::Call { .. } => panic!(),
         }
     }
 
@@ -211,6 +246,13 @@ impl Expr {
         Expr {
             inner: Box::new(inner),
             ty: RefCell::new(None),
+        }
+    }
+
+    fn with_typ(inner: IExpr, typ: Type) -> Expr {
+        Expr {
+            inner: Box::new(inner),
+            ty: RefCell::new(Some(typ)),
         }
     }
 }
@@ -225,7 +267,7 @@ pub enum IExpr {
         right: Expr,
     },
 
-    Literal(Literal),
+    Constant(Constant),
 
     Block(Vec<Expr>),
 
@@ -250,4 +292,29 @@ pub enum IExpr {
         store: Expr,
         value: Expr,
     },
+
+    Call {
+        callee: Expr,
+        args: SmallVec<[Expr; 4]>,
+    },
+}
+
+#[derive(Debug, Clone)]
+pub enum Constant {
+    Bool(bool),
+    Int(i64),
+    Float(f64),
+    String(SmolStr),
+    Function(FuncRef),
+}
+
+impl Constant {
+    pub fn from_literal(lit: &ast::Literal) -> Constant {
+        match lit {
+            Literal::Bool(b) => Self::Bool(*b),
+            Literal::Int(i) => Self::Int(*i),
+            Literal::Float(f) => Self::Float(*f),
+            Literal::String(s) => Self::String(s.clone()),
+        }
+    }
 }

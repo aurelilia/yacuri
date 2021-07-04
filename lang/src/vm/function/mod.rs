@@ -1,10 +1,14 @@
 use super::clif;
-use crate::{compiler::ir, vm::typesys};
+use crate::{
+    compiler::{ir, ir::Module},
+    vm::typesys,
+};
 use alloc::vec::Vec;
 use cranelift::{
     frontend::{FunctionBuilder, FunctionBuilderContext},
     prelude::*,
 };
+use cranelift_jit::JITModule;
 use smallvec::SmallVec;
 
 mod exprs;
@@ -15,6 +19,8 @@ pub struct FnTranslator<'b> {
     local_offsets: SmallVec<[usize; 6]>,
     blocks: SmallVec<[Block; 5]>,
     current_block: Block,
+    ir_module: &'b mut JITModule,
+    ya_module: &'b Module,
 }
 
 impl<'b> FnTranslator<'b> {
@@ -22,6 +28,7 @@ impl<'b> FnTranslator<'b> {
         self.init();
         let ret = self.trans_expr(&self.func.body.borrow());
         self.cl.ins().return_(&ret);
+        self.cl.finalize();
     }
 
     fn init(&mut self) {
@@ -87,6 +94,8 @@ impl<'b> FnTranslator<'b> {
         func: &'b ir::Function,
         clif: &'b mut clif::Function,
         ctx: &'b mut FunctionBuilderContext,
+        ir_module: &'b mut JITModule,
+        ya_module: &'b Module,
     ) -> Self {
         Self {
             func,
@@ -94,6 +103,8 @@ impl<'b> FnTranslator<'b> {
             local_offsets: SmallVec::from_slice(&[0]),
             blocks: SmallVec::new(),
             current_block: Block::with_number(0).unwrap(),
+            ir_module,
+            ya_module,
         }
     }
 }

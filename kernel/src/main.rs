@@ -16,7 +16,7 @@ use yacuri::{
     graphics::init_graphics,
     hlt_loop, kprintln, println,
     scheduling::{executor::Executor, task::Task},
-    vm
+    vm,
 };
 
 entry_point!(kernel_main);

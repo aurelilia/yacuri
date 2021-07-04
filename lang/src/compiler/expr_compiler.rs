@@ -1,32 +1,29 @@
 use crate::{
     compiler::{
-        ir::{Expr, Function, LocalVar, Type},
+        ir::{Constant, Expr, FuncRef, Function, LocalVar, Type},
         Compiler,
     },
-    error::{
-        ErrorKind,
-        ErrorKind::{E500, E501, E502, E503, E504, E505},
-    },
+    error::{ErrorKind, ErrorKind::*},
     lexer::TKind,
     parser::{ast, ast::EExpr},
     smol_str::SmolStr,
 };
 use alloc::{rc::Rc, string::ToString, vec, vec::Vec};
 use hashbrown::HashMap;
+use smallvec::SmallVec;
 
 type Environment<'e> = HashMap<SmolStr, &'e LocalVar>;
 
 pub struct ExprCompiler<'e> {
     function: &'e Function,
     compiler: &'e Compiler,
-
     environments: Vec<Environment<'e>>,
 }
 
 impl<'e> ExprCompiler<'e> {
     pub fn expr(&mut self, expr: &ast::Expr) -> Expr {
         match &*expr.ty {
-            EExpr::Literal(lit) => Expr::literal(lit.clone()),
+            EExpr::Literal(lit) => Expr::constant(Constant::from_literal(lit)),
 
             EExpr::Binary { left, op, right } => {
                 let left = self.expr(left);
@@ -96,16 +93,20 @@ impl<'e> ExprCompiler<'e> {
             EExpr::Identifier(ident) => {
                 let local = self.find_local(&ident.lex);
                 if let Some(local) = local {
-                    Expr::local(local)
-                } else {
-                    self.err(
-                        ident.start,
-                        E503 {
-                            name: ident.lex.clone(),
-                        },
-                    );
-                    Expr::poison()
+                    return Expr::local(local);
                 }
+                let func = self.find_function(&ident.lex);
+                if let Some(func) = func {
+                    return Expr::constant(Constant::Function(func));
+                }
+
+                self.err(
+                    ident.start,
+                    E503 {
+                        name: ident.lex.clone(),
+                    },
+                );
+                Expr::poison()
             }
 
             EExpr::Variable {
@@ -124,9 +125,52 @@ impl<'e> ExprCompiler<'e> {
                 Expr::assign_local(local, value)
             }
 
+            EExpr::Call { callee, args } => {
+                let start = callee.start;
+                let callee = self.expr(callee);
+                let func = if let Type::Function(fn_ref) = callee.typ() {
+                    fn_ref.resolve(&self.compiler.module)
+                } else {
+                    self.err(
+                        start,
+                        E506 {
+                            ty: callee.typ().to_string(),
+                        },
+                    );
+                    return Expr::poison();
+                };
+
+                let args = args
+                    .iter()
+                    .map(|a| self.expr(a))
+                    .collect::<SmallVec<[Expr; 4]>>();
+                if args.len() != func.params.len() {
+                    self.err(
+                        start,
+                        E507 {
+                            expected: func.params.len(),
+                            found: args.len(),
+                        },
+                    );
+                }
+                for (i, (arg, param)) in args.iter().zip(func.params.iter()).enumerate() {
+                    if arg.typ() != param.ty {
+                        self.err(
+                            start,
+                            E508 {
+                                expected: param.ty.to_string(),
+                                found: arg.typ().to_string(),
+                                pos: i,
+                            },
+                        );
+                    }
+                }
+
+                Expr::call(callee, args, func.ret_type.clone())
+            }
+
             /*
             EExpr::Unary { .. } => {}
-            EExpr::Call { .. } => {}
             */
             _ => panic!("i can't compile this"),
         }
@@ -143,6 +187,15 @@ impl<'e> ExprCompiler<'e> {
             .filter_map(|env| env.get(name))
             .next()
             .copied()
+    }
+
+    fn find_function(&self, name: &str) -> Option<FuncRef> {
+        self.compiler
+            .module
+            .funcs
+            .iter()
+            .position(|func| func.name == name)
+            .map(FuncRef::Module)
     }
 
     fn add_to_scope(&mut self, var: &'e LocalVar) {

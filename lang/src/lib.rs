@@ -33,80 +33,91 @@ mod test {
     use core::fmt::Debug;
     use std::format;
 
-    fn expr<T: Debug + PartialEq>(input: &str, ret_type: &str, expect: T) {
-        let res =
-            execute_program::<T>(&format!("fun main() {} {{ {} \n }}", ret_type, input)).unwrap();
+    fn file<T: Debug + PartialEq>(input: &str, expect: T) {
+        let res = execute_program::<T>(input).unwrap();
         assert_eq!(res, expect)
     }
 
-    fn nothing(input: &str) {
+    fn expr<T: Debug + PartialEq>(input: &str, ret_type: &str, expect: T) {
+        file::<T>(
+            &format!("fun main() {} {{ {} \n }}", ret_type, input),
+            expect,
+        );
+    }
+
+    fn expr_none(input: &str) {
         expr(input, "", ())
     }
-    fn bool_(input: &str, expect: bool) {
+    fn expr_bool(input: &str, expect: bool) {
         expr(input, "-> bool", expect)
     }
-    fn i64_(input: &str, expect: i64) {
+    fn expr_i64(input: &str, expect: i64) {
         expr(input, "-> i64", expect)
     }
 
     #[test]
     fn block() {
-        i64_("5 + 5 \n  2 - 2 \n 1", 1);
+        expr_i64("5 + 5 \n  2 - 2 \n 1", 1);
     }
 
     #[test]
     fn binary() {
-        i64_("5 + 37", 42);
-        i64_("3 - 2", 1);
-        i64_("5 * 2", 10);
-        i64_("64 / 8", 8);
+        expr_i64("5 + 37", 42);
+        expr_i64("3 - 2", 1);
+        expr_i64("5 * 2", 10);
+        expr_i64("64 / 8", 8);
     }
 
     #[test]
     fn logic() {
-        bool_("5 == 5", true);
-        bool_("5 != 5", false);
-        bool_("5 == 7", false);
-        bool_("5 != 7", true);
+        expr_bool("5 == 5", true);
+        expr_bool("5 != 5", false);
+        expr_bool("5 == 7", false);
+        expr_bool("5 != 7", true);
 
-        bool_("5 <= 5", true);
-        bool_("5 < 5", false);
-        bool_("5 >= 5", true);
-        bool_("5 > 5", false);
+        expr_bool("5 <= 5", true);
+        expr_bool("5 < 5", false);
+        expr_bool("5 >= 5", true);
+        expr_bool("5 > 5", false);
 
-        bool_("5 <= 7", true);
-        bool_("5 < 7", true);
-        bool_("5 >= 7", false);
-        bool_("5 > 7", false);
+        expr_bool("5 <= 7", true);
+        expr_bool("5 < 7", true);
+        expr_bool("5 >= 7", false);
+        expr_bool("5 > 7", false);
     }
 
     #[test]
     fn if_stmt() {
-        nothing("if (true) 35");
-        nothing("if (false) 35.42 else 0");
+        expr_none("if (true) 35");
+        expr_none("if (false) 35.42 else 0");
     }
 
     #[test]
     fn if_expr() {
-        i64_("if (true) 35 else 0", 35);
-        i64_("if (false) 35 else 0", 0);
+        expr_i64("if (true) 35 else 0", 35);
+        expr_i64("if (false) 35 else 0", 0);
     }
 
     #[test]
     fn while_() {
-        i64_("var a = 3 \n while (a < 10) { a = a + 1 } \n a", 10);
-        i64_("var a = 3 \n while (a > 10) { a = a + 1 } \n a", 3);
+        expr_i64("var a = 3 \n while (a < 10) { a = a + 1 } \n a", 10);
+        expr_i64("var a = 3 \n while (a > 10) { a = a + 1 } \n a", 3);
     }
 
     #[test]
     fn var_decl() {
-        i64_("val a = 44 \n a", 44);
-        i64_("var c = 24 + 1 \n c", 25);
+        expr_i64("val a = 44 \n a", 44);
+        expr_i64("var c = 24 + 1 \n c", 25);
     }
 
     #[test]
     fn assignment() {
-        i64_("var a = 44 \n a = 4 \n a", 4);
-        i64_("var c = 24 + 1 \n c = c + 2 \n c", 27);
+        expr_i64("var a = 44 \n a = 4 \n a", 4);
+        expr_i64("var c = 24 + 1 \n c = c + 2 \n c", 27);
+    }
+
+    #[test]
+    fn basic_funcs() {
+        file(include_str!("../tests/basic_funcs.yacari"), 422);
     }
 }

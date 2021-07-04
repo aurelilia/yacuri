@@ -46,6 +46,7 @@ impl Compiler {
                 params,
                 locals: SmallVec::new(),
                 ret_type,
+                ir: RefCell::new(None),
                 ast: func,
             })
         }

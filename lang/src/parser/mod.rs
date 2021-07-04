@@ -50,7 +50,10 @@ impl<'src> Parser<'src> {
                 let name = self.consume(Identifier)?.lex;
                 self.consume(Colon)?;
                 let ty = self.typ()?;
-                params.push(Parameter { name, ty })
+                params.push(Parameter { name, ty });
+                if !self.matches(Comma) {
+                    break;
+                }
             }
         }
         self.consume(RightParen)?;
@@ -185,6 +188,7 @@ impl<'src> Parser<'src> {
         loop {
             match self.current.kind {
                 LeftParen => {
+                    self.advance();
                     let mut args = Vec::new();
                     if !self.check(RightParen) {
                         loop {

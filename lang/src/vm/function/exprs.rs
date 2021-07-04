@@ -1,24 +1,26 @@
 use crate::{
     compiler::{
         ir,
-        ir::{Expr, IExpr},
+        ir::{Constant, Expr, IExpr},
     },
     lexer::TKind,
-    parser::ast::Literal,
     vm::{
         function::FnTranslator,
-        typesys,
+        get_func_id, typesys,
         typesys::{value, values, CValue},
     },
 };
+use alloc::vec::Vec;
 use cranelift::prelude::*;
+use cranelift_module::{Linkage, Module};
+use smallvec::SmallVec;
 
 impl<'b> FnTranslator<'b> {
     pub fn trans_expr(&mut self, expr: &ir::Expr) -> CValue {
         match &*expr.inner {
             IExpr::Binary { left, op, right } => value(self.binary(left, op.kind, right)),
 
-            IExpr::Literal(literal) => value(self.literal(literal)),
+            IExpr::Constant(constant) => value(self.constant(constant)),
 
             IExpr::Block(insts) => {
                 let mut value = None;
@@ -43,6 +45,8 @@ impl<'b> FnTranslator<'b> {
                 IExpr::Variable { index, typ } => self.assign_var(*index, value, typ),
                 _ => panic!("Unknown assignment target!"),
             },
+
+            IExpr::Call { callee, args } => self.call(callee, args),
 
             IExpr::Poison => panic!("Cannot translate poison values!"),
         }
@@ -96,12 +100,18 @@ impl<'b> FnTranslator<'b> {
         }
     }
 
-    fn literal(&mut self, literal: &Literal) -> Value {
-        match literal {
-            Literal::Bool(val) => self.cl.ins().bconst(types::B1, *val),
-            Literal::Int(int) => self.cl.ins().iconst(types::I64, *int),
-            Literal::Float(float) => self.cl.ins().f64const(*float),
-            Literal::String(_) => unimplemented!(),
+    fn constant(&mut self, constant: &Constant) -> Value {
+        match constant {
+            Constant::Bool(val) => self.cl.ins().bconst(types::B1, *val),
+            Constant::Int(int) => self.cl.ins().iconst(types::I64, *int),
+            Constant::Float(float) => self.cl.ins().f64const(*float),
+            Constant::String(_) => unimplemented!(),
+
+            // Functions are always their own types, so their values are essentially zero-sized.
+            // However, cranelift of course does not have zero-sized values,
+            // so we just return whatever.
+            // TODO is this fine? might be reasonable to return the pointer to the function instead for FFI or something in the future?
+            Constant::Function(_) => self.cl.ins().iconst(types::I64, 0),
         }
     }
 
@@ -147,8 +157,8 @@ impl<'b> FnTranslator<'b> {
         self.cl.seal_block(cont_b);
         value(self.cl.ins().iconst(types::I64, 0))
     }
-    
-    fn variable_expr(&mut self, index: usize, typ: &ir::Type) -> smallvec::SmallVec<[Value; 3]> {
+
+    fn variable_expr(&mut self, index: usize, typ: &ir::Type) -> CValue {
         let offset = self.local_offsets[index];
         let mut vals = CValue::new();
         typesys::translate_type(typ, |i, _| {
@@ -157,18 +167,35 @@ impl<'b> FnTranslator<'b> {
         vals
     }
 
-    fn assign_var(
-        &mut self,
-        index: usize,
-        value: &Expr,
-        typ: &ir::Type,
-    ) -> smallvec::SmallVec<[Value; 3]> {
+    fn assign_var(&mut self, index: usize, value: &Expr, typ: &ir::Type) -> CValue {
         let offset = self.local_offsets[index];
         let value = self.trans_expr(value);
         typesys::translate_type(typ, |i, _| {
             self.cl.def_var(Self::variable(offset + i), value[i]);
         });
         value
+    }
+
+    fn call(&mut self, callee: &Expr, args: &SmallVec<[Expr; 4]>) -> CValue {
+        let ir_callee = self.trans_expr(callee);
+        let func_id = {
+            let func = callee.typ().into_fn().resolve(self.ya_module);
+            get_func_id(&mut self.ir_module, func)
+        };
+
+        let local_callee = self
+            .ir_module
+            .declare_func_in_func(func_id, &mut self.cl.func);
+
+        let mut call_args = Vec::new();
+        for arg in args {
+            let res = self.trans_expr(arg);
+            for val in res {
+                call_args.push(val);
+            }
+        }
+        let call = self.cl.ins().call(local_callee, &call_args);
+        values(self.cl.inst_results(call))
     }
 }
 

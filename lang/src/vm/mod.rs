@@ -38,15 +38,17 @@ impl JIT {
     pub fn compile_mod(&mut self, module: &ir::Module) -> FuncId {
         let mut ids = Vec::with_capacity(module.funcs.len());
         for func in &module.funcs {
-            self.build_function_signature(func);
-            let mut translator =
-                FnTranslator::new(func, &mut self.ctx.func, &mut self.builder_context);
+            make_fn_sig(&mut self.ctx.func.signature, func);
+            let id = get_func_id_with_sig(&mut self.module, func, &self.ctx.func.signature);
+            let mut translator = FnTranslator::new(
+                func,
+                &mut self.ctx.func,
+                &mut self.builder_context,
+                &mut self.module,
+                &module,
+            );
             translator.build();
 
-            let id = self
-                .module
-                .declare_function(&func.name, Linkage::Export, &self.ctx.func.signature)
-                .unwrap();
             self.module
                 .define_function(
                     id,
@@ -68,24 +70,43 @@ impl JIT {
         let func = unsafe { mem::transmute::<_, fn() -> T>(ptr) };
         func()
     }
+}
 
-    fn build_function_signature(&mut self, func: &ir::Function) {
-        for param in &func.params {
-            typesys::translate_type(&param.ty, |_, param_type| {
-                self.ctx
-                    .func
-                    .signature
-                    .params
-                    .push(AbiParam::new(param_type));
-            });
-        }
-
-        typesys::translate_type(&func.ret_type, |_, ret_type| {
-            self.ctx
-                .func
-                .signature
-                .returns
-                .push(AbiParam::new(ret_type));
-        });
+fn get_func_id(module: &mut JITModule, func: &ir::Function) -> FuncId {
+    let mut ir = func.ir.borrow_mut();
+    if let Some(ir) = *ir {
+        ir
+    } else {
+        let mut sig = module.make_signature();
+        make_fn_sig(&mut sig, func);
+        let id = module
+            .declare_function(&func.name, Linkage::Export, &sig)
+            .unwrap();
+        *ir = Some(id);
+        id
     }
+}
+
+fn get_func_id_with_sig(
+    module: &mut JITModule,
+    func: &ir::Function,
+    sig: &clif::Signature,
+) -> FuncId {
+    let mut ir = func.ir.borrow_mut();
+    if let Some(ir) = *ir {
+        ir
+    } else {
+        let id = module
+            .declare_function(&func.name, Linkage::Export, &sig)
+            .unwrap();
+        *ir = Some(id);
+        id
+    }
+}
+
+fn make_fn_sig(sig: &mut clif::Signature, func: &ir::Function) {
+    for p in &func.params {
+        typesys::translate_type(&p.ty, |_, ty| sig.params.push(AbiParam::new(ty)));
+    }
+    typesys::translate_type(&func.ret_type, |_, ty| sig.returns.push(AbiParam::new(ty)));
 }

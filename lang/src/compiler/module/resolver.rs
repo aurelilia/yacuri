@@ -1,11 +1,11 @@
 use crate::{
-    compiler::{ir::Type, Compiler},
+    compiler::{ir::Type, module::ModuleCompiler},
     error::{Error, ErrorKind::E200, Res},
     parser::ast,
     smol_str::SmolStr,
 };
 
-impl Compiler {
+impl ModuleCompiler {
     pub fn resolve_ty(&self, ty: &ast::Type) -> Res<Type> {
         self.resolve_ty_name(&ty.name.lex, ty.name.start)
     }

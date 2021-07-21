@@ -3,6 +3,7 @@ use alloc::{boxed::Box, vec::Vec};
 
 #[derive(Debug)]
 pub struct Module {
+    pub path: Vec<SmolStr>,
     pub functions: Vec<Function>,
 }
 

@@ -5,36 +5,78 @@ extern crate alloc;
 
 use crate::{compiler::Compiler, error::Errors, parser::Parser, vm::JIT};
 
+use crate::{
+    compiler::module::ModuleCompiler,
+    filesystem::{Filesystem},
+};
+use alloc::{vec, vec::Vec};
+use cranelift::codegen::entity::__core::mem::MaybeUninit;
+use cranelift_module::FuncId;
+
 #[cfg(feature = "core")]
 pub use cranelift_jit::{set_manager, MemoryManager};
+pub use smol_str::SmolStr;
 
 #[cfg(feature = "std")]
 extern crate std;
 
 mod compiler;
 mod error;
+pub mod filesystem;
 mod lexer;
 mod parser;
 mod smol_str;
 mod vm;
 
-pub fn execute_program<T>(program: &str) -> Result<T, Errors> {
-    let parse = Parser::new(program).parse()?;
-    let ir = Compiler::new(parse).consume()?;
+pub fn execute_module<T>(program: &str) -> Result<T, Errors> {
+    let parse = Parser::new(program).parse(vec![SmolStr::new_inline("script")])?;
+    let ir = ModuleCompiler::new(parse).consume()?;
     let mut jit = JIT::default();
     let main = jit.compile_mod(&ir);
     Ok(jit.exec(main))
 }
 
+#[cfg(feature = "std")]
+pub fn execute_with_os_fs<T>(paths: &[&str]) -> Result<T, Vec<Errors>> {
+    execute_path(filesystem::OsFs, paths)
+}
+
+pub fn execute_path<FS: Filesystem, T>(fs: FS, paths: &[&str]) -> Result<T, Vec<Errors>> {
+    let mut modules = Vec::with_capacity(20);
+    let mut errors = Vec::new();
+
+    for path in paths {
+        fs.walk_directory(path, |file| {
+            let parse = Parser::new(&file.contents).parse(file.path);
+            match parse {
+                Ok(module) => modules.push(module),
+                Err(err) => errors.push(err),
+            }
+        })
+    }
+    if !errors.is_empty() {
+        return Err(errors);
+    }
+
+    let ir = Compiler::new(modules).consume()?;
+    let mut jit = JIT::default();
+
+    let mut main: FuncId = unsafe { MaybeUninit::uninit().assume_init() }; // todo noooo
+    for module in &ir {
+        main = jit.compile_mod(module);
+    }
+    Ok(jit.exec(main))
+}
+
 #[cfg(test)]
 mod test {
-    use crate::execute_program;
+    use crate::execute_module;
     extern crate std;
     use core::fmt::Debug;
     use std::format;
 
     fn file<T: Debug + PartialEq>(input: &str, expect: T) {
-        let res = execute_program::<T>(input).unwrap();
+        let res = execute_module::<T>(input).unwrap();
         assert_eq!(res, expect)
     }
 

@@ -21,7 +21,7 @@ pub struct Parser<'src> {
 }
 
 impl<'src> Parser<'src> {
-    pub fn parse(mut self) -> Result<Module, Errors> {
+    pub fn parse(mut self, path: Vec<SmolStr>) -> Result<Module, Errors> {
         let mut functions = Vec::new();
         while !self.is_at_end() {
             self.advance(); // consume 'fun' for now
@@ -34,7 +34,7 @@ impl<'src> Parser<'src> {
             }
         }
         if self.errors.is_empty() {
-            Ok(Module { functions })
+            Ok(Module { functions, path })
         } else {
             Err(self.errors)
         }

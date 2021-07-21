@@ -1,8 +1,10 @@
 use crate::drivers::disk::ata_pio::AtaDrive;
-use fatfs::{DefaultTimeProvider, Dir, FileSystem, LossyOemCpConverter};
+use fatfs::{DefaultTimeProvider, Dir, FileSystem, LossyOemCpConverter, File, DirEntry};
 
 pub type FatFs = FileSystem<AtaDrive, DefaultTimeProvider, LossyOemCpConverter>;
 pub type FatDir<'d> = Dir<'d, AtaDrive, DefaultTimeProvider, LossyOemCpConverter>;
+pub type FatFile<'d> = File<'d, AtaDrive, DefaultTimeProvider, LossyOemCpConverter>;
+pub type FatEntry<'d> = DirEntry<'d, AtaDrive, DefaultTimeProvider, LossyOemCpConverter>;
 
 /// Treat a given block device as a FAT filesystem.
 ///

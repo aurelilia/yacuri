@@ -1,4 +1,3 @@
-use crate::kprintln;
 use alloc::slice;
 use bootloader::boot_info::{FrameBuffer, FrameBufferInfo};
 use conquer_once::spin::OnceCell;

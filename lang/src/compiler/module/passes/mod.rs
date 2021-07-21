@@ -1,8 +1,7 @@
 use crate::{
     compiler::{
-        expr_compiler::ExprCompiler,
         ir::{Expr, Function, LocalVar, Type},
-        Compiler,
+        module::{expr_compiler::ExprCompiler, ModuleCompiler},
     },
     error::Res,
 };
@@ -10,8 +9,12 @@ use alloc::vec::Vec;
 use core::{cell::RefCell, mem};
 use smallvec::SmallVec;
 
-impl Compiler {
-    pub fn run_passes(&mut self) {
+impl ModuleCompiler {
+    pub fn run_all(&mut self) {
+        self.stage_1();
+    }
+
+    pub fn stage_1(&mut self) {
         self.declare_functions().unwrap();
         self.generate_functions().unwrap();
     }

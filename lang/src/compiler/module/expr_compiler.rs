@@ -1,7 +1,7 @@
 use crate::{
     compiler::{
         ir::{Constant, Expr, FuncRef, Function, LocalVar, Type},
-        Compiler,
+        module::ModuleCompiler,
     },
     error::{ErrorKind, ErrorKind::*},
     lexer::TKind,
@@ -16,7 +16,7 @@ type Environment<'e> = HashMap<SmolStr, &'e LocalVar>;
 
 pub struct ExprCompiler<'e> {
     function: &'e Function,
-    compiler: &'e Compiler,
+    compiler: &'e ModuleCompiler,
     environments: Vec<Environment<'e>>,
 }
 
@@ -213,7 +213,7 @@ impl<'e> ExprCompiler<'e> {
         self.environments.pop();
     }
 
-    pub fn new(compiler: &'e Compiler, function: &'e Function) -> Self {
+    pub fn new(compiler: &'e ModuleCompiler, function: &'e Function) -> Self {
         ExprCompiler {
             function,
             compiler,

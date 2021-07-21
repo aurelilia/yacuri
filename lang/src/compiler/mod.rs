@@ -1,36 +1,52 @@
-mod expr_compiler;
-pub mod ir;
-mod passes;
-mod resolver;
-
-use crate::{error::Errors, parser::ast};
+use crate::{
+    compiler::{ir::Module, module::ModuleCompiler},
+    error::Errors,
+    parser::ast,
+};
 use alloc::vec::Vec;
-use hashbrown::HashSet;
-use ir::Module;
+
+pub mod ir;
+pub mod module;
 
 pub struct Compiler {
-    module: Module,
-    errors: Errors,
+    modules: Vec<ModuleCompiler>,
 }
 
 impl Compiler {
-    pub fn consume(mut self) -> Result<Module, Errors> {
-        self.run_passes();
-        if self.errors.is_empty() {
-            Ok(self.module)
-        } else {
-            Err(self.errors)
+    pub fn consume(mut self) -> Result<Vec<Module>, Vec<Errors>> {
+        self.all_mods(ModuleCompiler::stage_1);
+        self.finish()
+    }
+
+    fn all_mods(&mut self, mut cls: impl FnMut(&mut ModuleCompiler)) {
+        for module in self.modules.iter_mut() {
+            cls(module)
         }
     }
 
-    pub fn new(ast: ast::Module) -> Self {
+    fn finish(self) -> Result<Vec<Module>, Vec<Errors>> {
+        let mut errors = Vec::new();
+        let mods = self
+            .modules
+            .into_iter()
+            .map(|m| {
+                if !m.errors.is_empty() {
+                    errors.push(m.errors);
+                }
+                m.module
+            })
+            .collect();
+
+        if errors.is_empty() {
+            Ok(mods)
+        } else {
+            Err(errors)
+        }
+    }
+
+    pub fn new(modules: Vec<ast::Module>) -> Self {
         Self {
-            module: Module {
-                funcs: Vec::with_capacity(ast.functions.len()),
-                reserved_names: HashSet::with_capacity(ast.functions.len()),
-                ast,
-            },
-            errors: Vec::new(),
+            modules: modules.into_iter().map(ModuleCompiler::new).collect(),
         }
     }
 }

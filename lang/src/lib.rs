@@ -64,10 +64,15 @@ pub fn execute_path<FS: Filesystem, T>(fs: FS, paths: &[&str]) -> Result<T, Vec<
 
 #[cfg(test)]
 mod test {
-    use crate::execute_module;
+    use crate::{execute_module, execute_with_os_fs};
     extern crate std;
     use core::fmt::Debug;
     use std::format;
+
+    fn directory<T: Debug + PartialEq>(dir: &str, expect: T) {
+        let res = execute_with_os_fs::<T>(&[dir]).unwrap();
+        assert_eq!(res, expect)
+    }
 
     fn file<T: Debug + PartialEq>(input: &str, expect: T) {
         let res = execute_module::<T>(input).unwrap();
@@ -155,5 +160,10 @@ mod test {
     #[test]
     fn basic_funcs() {
         file(include_str!("../tests/basic_funcs.yacari"), 422);
+    }
+
+    #[test]
+    fn basic_modules() {
+        directory("tests/basic_modules", 13);
     }
 }

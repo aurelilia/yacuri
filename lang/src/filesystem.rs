@@ -1,6 +1,7 @@
 use crate::smol_str::SmolStr;
 use alloc::{string::String, vec::Vec};
 
+#[derive(Debug)]
 pub struct File {
     pub path: Vec<SmolStr>,
     pub contents: String,
@@ -35,7 +36,7 @@ pub mod os_fs {
             }
         } else if *input
             .extension()
-            .map(|ext| ext == "yac")
+            .map(|ext| ext == "yacari")
             .get_or_insert(false)
         {
             cls(YFile {

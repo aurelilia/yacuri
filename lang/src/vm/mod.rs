@@ -37,7 +37,6 @@ impl Default for JIT {
 
 impl JIT {
     pub(crate) fn jit_module(&mut self, module: &ir::Module) {
-        let mut ids = Vec::with_capacity(module.funcs.len());
         for func in &module.funcs {
             make_fn_sig(&mut self.ctx.func.signature, func);
             let id = get_func_id_with_sig(&mut self.module, func, &self.ctx.func.signature);
@@ -59,7 +58,6 @@ impl JIT {
                 )
                 .unwrap();
             self.module.clear_context(&mut self.ctx);
-            ids.push(id);
         }
 
         self.module.finalize_definitions();

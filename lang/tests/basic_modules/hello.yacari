@@ -1,0 +1,5 @@
+fun main() -> i64 {
+    hello()
+}
+
+fun hello() -> i64 13

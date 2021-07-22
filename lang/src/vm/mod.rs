@@ -12,7 +12,7 @@ use cranelift::{
     prelude::*,
 };
 use cranelift_jit::{JITBuilder, JITModule};
-use cranelift_module::{DataContext, FuncId, Linkage, Module};
+use cranelift_module::{DataContext, FuncId, FuncOrDataId, Linkage, Module};
 
 #[allow(unused)]
 pub struct JIT {
@@ -36,7 +36,7 @@ impl Default for JIT {
 }
 
 impl JIT {
-    pub fn compile_mod(&mut self, module: &ir::Module) -> FuncId {
+    pub(crate) fn jit_module(&mut self, module: &ir::Module) {
         let mut ids = Vec::with_capacity(module.funcs.len());
         for func in &module.funcs {
             make_fn_sig(&mut self.ctx.func.signature, func);
@@ -63,10 +63,16 @@ impl JIT {
         }
 
         self.module.finalize_definitions();
-        ids[0]
     }
 
-    pub fn exec<T>(&mut self, id: FuncId) -> T {
+    pub fn exec<T>(&mut self, name: &str) -> T {
+        let id = self.module.get_name(name).unwrap();
+        let id = if let FuncOrDataId::Func(id) = id {
+            id
+        } else {
+            panic!()
+        };
+
         let ptr = self.module.get_finalized_function(id);
         let func = unsafe { mem::transmute::<_, fn() -> T>(ptr) };
         func()

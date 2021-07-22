@@ -5,13 +5,8 @@ extern crate alloc;
 
 use crate::{compiler::Compiler, error::Errors, parser::Parser, vm::JIT};
 
-use crate::{
-    compiler::module::ModuleCompiler,
-    filesystem::{Filesystem},
-};
+use crate::{compiler::module::ModuleCompiler, filesystem::Filesystem};
 use alloc::{vec, vec::Vec};
-use cranelift::codegen::entity::__core::mem::MaybeUninit;
-use cranelift_module::FuncId;
 
 #[cfg(feature = "core")]
 pub use cranelift_jit::{set_manager, MemoryManager};
@@ -32,13 +27,13 @@ pub fn execute_module<T>(program: &str) -> Result<T, Errors> {
     let parse = Parser::new(program).parse(vec![SmolStr::new_inline("script")])?;
     let ir = ModuleCompiler::new(parse).consume()?;
     let mut jit = JIT::default();
-    let main = jit.compile_mod(&ir);
-    Ok(jit.exec(main))
+    jit.jit_module(&ir);
+    Ok(jit.exec("main"))
 }
 
 #[cfg(feature = "std")]
 pub fn execute_with_os_fs<T>(paths: &[&str]) -> Result<T, Vec<Errors>> {
-    execute_path(filesystem::OsFs, paths)
+    execute_path(filesystem::os_fs::OsFs, paths)
 }
 
 pub fn execute_path<FS: Filesystem, T>(fs: FS, paths: &[&str]) -> Result<T, Vec<Errors>> {
@@ -61,11 +56,10 @@ pub fn execute_path<FS: Filesystem, T>(fs: FS, paths: &[&str]) -> Result<T, Vec<
     let ir = Compiler::new(modules).consume()?;
     let mut jit = JIT::default();
 
-    let mut main: FuncId = unsafe { MaybeUninit::uninit().assume_init() }; // todo noooo
     for module in &ir {
-        main = jit.compile_mod(module);
+        jit.jit_module(module);
     }
-    Ok(jit.exec(main))
+    Ok(jit.exec("main"))
 }
 
 #[cfg(test)]

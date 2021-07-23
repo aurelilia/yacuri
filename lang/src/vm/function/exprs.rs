@@ -27,7 +27,7 @@ impl<'b> FnTranslator<'b> {
                 for inst in insts {
                     value = Some(self.trans_expr(inst));
                 }
-                value.unwrap()
+                value.unwrap_or_else(|| values(&[]))
             }
 
             IExpr::If {

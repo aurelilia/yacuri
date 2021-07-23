@@ -26,6 +26,8 @@ pub enum ErrorKind {
     },
     // Expected expression.
     E101,
+    // Expected declaration.
+    E102,
 
     // Cannot find type '{}'.
     E200(SmolStr),

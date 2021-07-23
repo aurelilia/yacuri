@@ -6,7 +6,7 @@ use crate::{
     lexer::TKind,
     vm::{
         function::FnTranslator,
-        get_func_id, typesys,
+        get_or_declare_ir_fn, typesys,
         typesys::{value, values, CValue},
     },
 };
@@ -179,7 +179,7 @@ impl<'b> FnTranslator<'b> {
     fn call(&mut self, callee: &Expr, args: &SmallVec<[Expr; 4]>) -> CValue {
         let func_id = {
             let func = callee.typ().into_fn().resolve(self.ya_module);
-            get_func_id(&mut self.ir_module, func)
+            get_or_declare_ir_fn(&mut self.ir_module, func)
         };
 
         let local_callee = self

@@ -13,6 +13,7 @@ use crate::{
 use alloc::{boxed::Box, vec::Vec};
 pub use ast::Module;
 use core::{mem, str::FromStr};
+use crate::error::ErrorKind::E102;
 
 pub struct Parser<'src> {
     lexer: Lexer<'src>,
@@ -24,11 +25,11 @@ impl<'src> Parser<'src> {
     pub fn parse(mut self, path: Vec<SmolStr>) -> Result<Module, Errors> {
         let mut functions = Vec::new();
         while !self.is_at_end() {
-            self.advance(); // consume 'fun' for now
-            match self.function() {
-                Ok(f) => functions.push(f),
-                Err(e) => {
-                    self.errors.push(e);
+            match self.advance().kind {
+                TKind::Fun => self.make_fn(&mut functions, false),
+                TKind::Extern if self.advance().kind == TKind::Fun => self.make_fn(&mut functions, true),
+                _ => {
+                    self.errors.push(Error::new(self.current.start, E102));
                     self.synchronize()
                 }
             }
@@ -40,7 +41,17 @@ impl<'src> Parser<'src> {
         }
     }
 
-    fn function(&mut self) -> Res<Function> {
+    fn make_fn(&mut self, functions: &mut Vec<Function>, is_ext: bool) {
+        match self.function(is_ext) {
+            Ok(f) => functions.push(f),
+            Err(e) => {
+                self.errors.push(e);
+                self.synchronize()
+            }
+        }
+    }
+
+    fn function(&mut self, is_ext: bool) -> Res<Function> {
         let name = self.consume(Identifier)?;
 
         self.consume(LeftParen)?;
@@ -64,7 +75,11 @@ impl<'src> Parser<'src> {
             None
         };
 
-        let body = self.expression()?;
+        let body = if !is_ext {
+             Some(self.expression()?)
+        } else {
+            None
+        };
         Ok(Function {
             name,
             params,

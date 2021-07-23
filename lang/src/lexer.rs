@@ -112,6 +112,8 @@ pub enum TKind {
     Else,
     #[token("enum")]
     Enum,
+    #[token("extern")]
+    Extern,
     #[token("false")]
     False,
     #[token("for")]

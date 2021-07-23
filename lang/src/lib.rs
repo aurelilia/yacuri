@@ -11,6 +11,7 @@ use alloc::{vec, vec::Vec};
 #[cfg(feature = "core")]
 pub use cranelift_jit::{set_manager, MemoryManager};
 pub use smol_str::SmolStr;
+pub use crate::vm::SymbolTable;
 
 #[cfg(feature = "std")]
 extern crate std;
@@ -23,20 +24,20 @@ mod parser;
 mod smol_str;
 mod vm;
 
-pub fn execute_module<T>(program: &str) -> Result<T, Errors> {
+pub fn execute_module<T>(program: &str, symbols: SymbolTable) -> Result<T, Errors> {
     let parse = Parser::new(program).parse(vec![SmolStr::new_inline("script")])?;
     let ir = ModuleCompiler::new(parse).consume()?;
-    let mut jit = JIT::default();
+    let mut jit = JIT::new(symbols);
     jit.jit_module(&ir);
     Ok(jit.exec("main"))
 }
 
 #[cfg(feature = "std")]
-pub fn execute_with_os_fs<T>(paths: &[&str]) -> Result<T, Vec<Errors>> {
-    execute_path(filesystem::os_fs::OsFs, paths)
+pub fn execute_with_os_fs<T>(paths: &[&str], symbols: SymbolTable) -> Result<T, Vec<Errors>> {
+    execute_path(filesystem::os_fs::OsFs, paths, symbols)
 }
 
-pub fn execute_path<FS: Filesystem, T>(fs: FS, paths: &[&str]) -> Result<T, Vec<Errors>> {
+pub fn execute_path<FS: Filesystem, T>(fs: FS, paths: &[&str], symbols: SymbolTable) -> Result<T, Vec<Errors>> {
     let mut modules = Vec::with_capacity(20);
     let mut errors = Vec::new();
 
@@ -54,7 +55,7 @@ pub fn execute_path<FS: Filesystem, T>(fs: FS, paths: &[&str]) -> Result<T, Vec<
     }
 
     let ir = Compiler::new(modules).consume()?;
-    let mut jit = JIT::default();
+    let mut jit = JIT::new(symbols);
 
     for module in &ir {
         jit.jit_module(module);
@@ -68,14 +69,15 @@ mod test {
     extern crate std;
     use core::fmt::Debug;
     use std::format;
+    use crate::vm::SymbolTable;
 
-    fn directory<T: Debug + PartialEq>(dir: &str, expect: T) {
-        let res = execute_with_os_fs::<T>(&[dir]).unwrap();
+    fn directory<T: Debug + PartialEq>(dir: &str, expect: T, symbols: SymbolTable) {
+        let res = execute_with_os_fs::<T>(&[dir], symbols).unwrap();
         assert_eq!(res, expect)
     }
 
     fn file<T: Debug + PartialEq>(input: &str, expect: T) {
-        let res = execute_module::<T>(input).unwrap();
+        let res = execute_module::<T>(input, &[]).unwrap();
         assert_eq!(res, expect)
     }
 
@@ -164,6 +166,8 @@ mod test {
 
     #[test]
     fn basic_modules() {
-        directory("tests/basic_modules", 13);
+        directory("tests/basic_modules", 13, &[
+            ("hello", (|| 13) as fn() -> i64 as *const u8)
+        ]);
     }
 }

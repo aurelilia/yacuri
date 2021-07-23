@@ -12,7 +12,7 @@ pub struct Function {
     pub name: Token,
     pub params: Vec<Parameter>,
     pub ret_type: Option<Type>,
-    pub body: Expr,
+    pub body: Option<Expr>,
 }
 
 #[derive(Debug)]

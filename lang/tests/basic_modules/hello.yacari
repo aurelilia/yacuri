@@ -2,4 +2,4 @@ fun main() -> i64 {
     hello()
 }
 
-fun hello() -> i64 13
+extern fun hello() -> i64

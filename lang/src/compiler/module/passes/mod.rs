@@ -58,9 +58,9 @@ impl ModuleCompiler {
     }
 
     fn generate_functions(&self) -> Res<()> {
-        for func in &self.module.funcs {
+        for func in self.module.funcs.iter().filter(|f| f.ast.body.is_some()) {
             let mut compiler = ExprCompiler::new(self, func);
-            let body = compiler.expr(&func.ast.body);
+            let body = compiler.expr(&func.ast.body.as_ref().unwrap());
             *func.body.borrow_mut() = body;
         }
         Ok(())

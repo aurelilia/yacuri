@@ -2,7 +2,6 @@ mod function;
 mod typesys;
 
 use crate::{compiler::ir, vm::function::FnTranslator};
-use alloc::vec::Vec;
 use core::mem;
 use cranelift::{
     codegen::{
@@ -14,6 +13,8 @@ use cranelift::{
 use cranelift_jit::{JITBuilder, JITModule};
 use cranelift_module::{DataContext, FuncId, FuncOrDataId, Linkage, Module};
 
+pub type SymbolTable<'t> = &'t [(&'t str, *const u8)];
+
 #[allow(unused)]
 pub struct JIT {
     builder_context: FunctionBuilderContext,
@@ -22,24 +23,11 @@ pub struct JIT {
     module: JITModule,
 }
 
-impl Default for JIT {
-    fn default() -> Self {
-        let builder = JITBuilder::new(cranelift_module::default_libcall_names());
-        let module = JITModule::new(builder);
-        Self {
-            builder_context: FunctionBuilderContext::new(),
-            ctx: module.make_context(),
-            data_ctx: DataContext::new(),
-            module,
-        }
-    }
-}
-
 impl JIT {
     pub(crate) fn jit_module(&mut self, module: &ir::Module) {
-        for func in &module.funcs {
+        for func in module.funcs.iter().filter(|f| f.ast.body.is_some()) {
             make_fn_sig(&mut self.ctx.func.signature, func);
-            let id = get_func_id_with_sig(&mut self.module, func, &self.ctx.func.signature);
+            let id = declare_ir_function(&mut self.module, func, &self.ctx.func.signature);
             let mut translator = FnTranslator::new(
                 func,
                 &mut self.ctx.func,
@@ -75,9 +63,24 @@ impl JIT {
         let func = unsafe { mem::transmute::<_, fn() -> T>(ptr) };
         func()
     }
+
+    pub fn new(symbols: SymbolTable) -> Self {
+        let mut builder = JITBuilder::new(cranelift_module::default_libcall_names());
+        for (name, ptr) in symbols {
+            builder.symbol(*name, *ptr);
+        }
+
+        let module = JITModule::new(builder);
+        Self {
+            builder_context: FunctionBuilderContext::new(),
+            ctx: module.make_context(),
+            data_ctx: DataContext::new(),
+            module,
+        }
+    }
 }
 
-fn get_func_id(module: &mut JITModule, func: &ir::Function) -> FuncId {
+fn get_or_declare_ir_fn(module: &mut JITModule, func: &ir::Function) -> FuncId {
     let mut ir = func.ir.borrow_mut();
     if let Some(ir) = *ir {
         ir
@@ -85,14 +88,14 @@ fn get_func_id(module: &mut JITModule, func: &ir::Function) -> FuncId {
         let mut sig = module.make_signature();
         make_fn_sig(&mut sig, func);
         let id = module
-            .declare_function(&func.name, Linkage::Export, &sig)
+            .declare_function(&func.name, get_linkage(func), &sig)
             .unwrap();
         *ir = Some(id);
         id
     }
 }
 
-fn get_func_id_with_sig(
+fn declare_ir_function(
     module: &mut JITModule,
     func: &ir::Function,
     sig: &clif::Signature,
@@ -102,10 +105,18 @@ fn get_func_id_with_sig(
         ir
     } else {
         let id = module
-            .declare_function(&func.name, Linkage::Export, &sig)
+            .declare_function(&func.name, get_linkage(func), &sig)
             .unwrap();
         *ir = Some(id);
         id
+    }
+}
+
+fn get_linkage(func: &ir::Function) -> Linkage {
+    if func.ast.body.is_none() {
+        Linkage::Import
+    } else {
+        Linkage::Export
     }
 }
 

@@ -138,7 +138,7 @@ impl Shell {
                 let file = self.read_file(&file);
                 if let Some(file) = file {
                     println!("executing {} ({} bytes)...", file, file.len());
-                    kprintln!("{:#?}", yacari::execute_module::<()>(&file))
+                    kprintln!("{:#?}", yacari::execute_module::<()>(&file, &[]))
                 }
             }
 

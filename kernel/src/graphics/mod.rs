@@ -87,7 +87,7 @@ fn draw_hori_line(x: usize, y: usize, len: usize, color: Color) {
     }
 }
 
-fn draw_rect(x: usize, y: usize, w: usize, h: usize, color: Color) {
+pub fn draw_rect(x: usize, y: usize, w: usize, h: usize, color: Color) {
     let mut buf = obtain_buffer();
     assert!((x + w) <= buf.width);
     assert!((y + h) <= buf.width);

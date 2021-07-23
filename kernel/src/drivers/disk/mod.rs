@@ -1,10 +1,14 @@
-use alloc::string::String;
-use alloc::vec::Vec;
-use fatfs::{Read, SeekFrom, Seek};
+use crate::{
+    drivers::disk::fat::{FatDir, FatFile},
+    kprintln,
+};
+use alloc::{string::String, vec::Vec};
+use fatfs::{Read, Seek, SeekFrom};
 use spin::{RwLock, RwLockReadGuard};
-use yacari::filesystem::{Filesystem, File};
-use crate::drivers::disk::fat::{FatFile, FatDir};
-use yacari::SmolStr;
+use yacari::{
+    filesystem::{File, Filesystem},
+    SmolStr,
+};
 
 pub mod ata_pio;
 pub mod fat;
@@ -13,12 +17,15 @@ static FS_LOCK: RwLock<()> = RwLock::new(());
 
 pub struct FileSystem<'fs> {
     fs: fat::FatFs,
-    lock: RwLockReadGuard<'fs, ()>
+    lock: RwLockReadGuard<'fs, ()>,
 }
 
 impl<'fs> FileSystem<'fs> {
     pub fn new() -> Self {
-        FileSystem { fs: fat::fat_from_secondary(), lock: FS_LOCK.read() }
+        FileSystem {
+            fs: fat::fat_from_secondary(),
+            lock: FS_LOCK.read(),
+        }
     }
 }
 
@@ -30,7 +37,7 @@ impl<'fs> Filesystem for FileSystem<'fs> {
 }
 
 fn walk_dir<T: FnMut(File)>(entry: FatDir, path_buf: &mut Vec<SmolStr>, cls: &mut T) {
-    for sub in entry.iter() {
+    for sub in entry.iter().skip(2) { // Skip '.' and '..'
         match sub {
             Ok(entry) if entry.is_dir() => {
                 path_buf.push(SmolStr::new(entry.file_name()));
@@ -39,10 +46,15 @@ fn walk_dir<T: FnMut(File)>(entry: FatDir, path_buf: &mut Vec<SmolStr>, cls: &mu
             }
 
             Ok(entry) if entry.is_file() => {
-                read_file(entry.to_file()).map(|contents| cls(File { path: path_buf.clone(), contents }));
-            },
+                read_file(entry.to_file()).map(|contents| {
+                    cls(File {
+                        path: path_buf.clone(),
+                        contents,
+                    })
+                });
+            }
 
-            _ => ()
+            _ => (),
         }
     }
 }

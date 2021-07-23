@@ -27,10 +27,10 @@ pic8259 = "0.10.1"
 pc-keyboard = "0.5.1"
 linked_list_allocator = "0.9.0"
 
-# TODO: Change this back to upstream when PR #179 (or equivalent) hopefully gets merged
+# TODO: Change this back to upstream when PR #179 & #180 (or equivalent) hopefully gets merged
 [dependencies.bootloader]
 git = "https://github.com/anellie/bootloader"
-branch = "main"
+branch = "yacuri"
 
 [dependencies.fatfs]
 git = "https://github.com/rafalh/rust-fatfs"
@@ -55,6 +55,7 @@ harness = false
 map-physical-memory = true
 desired-framebuffer-width = 1920
 desired-framebuffer-height = 1080
+kernel-stack-size = 67108864 # 64 MB
 
 [package.metadata.bootimage]
 run-args = [

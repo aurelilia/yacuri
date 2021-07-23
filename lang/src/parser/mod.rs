@@ -3,7 +3,7 @@ pub mod ast;
 use crate::{
     error::{
         Error,
-        ErrorKind::{E100, E101},
+        ErrorKind::{E100, E101, E102},
         Errors, Res,
     },
     lexer::{Lexer, TKind, TKind::*, Token},
@@ -13,7 +13,6 @@ use crate::{
 use alloc::{boxed::Box, vec::Vec};
 pub use ast::Module;
 use core::{mem, str::FromStr};
-use crate::error::ErrorKind::E102;
 
 pub struct Parser<'src> {
     lexer: Lexer<'src>,
@@ -27,7 +26,9 @@ impl<'src> Parser<'src> {
         while !self.is_at_end() {
             match self.advance().kind {
                 TKind::Fun => self.make_fn(&mut functions, false),
-                TKind::Extern if self.advance().kind == TKind::Fun => self.make_fn(&mut functions, true),
+                TKind::Extern if self.advance().kind == TKind::Fun => {
+                    self.make_fn(&mut functions, true)
+                }
                 _ => {
                     self.errors.push(Error::new(self.current.start, E102));
                     self.synchronize()
@@ -76,7 +77,7 @@ impl<'src> Parser<'src> {
         };
 
         let body = if !is_ext {
-             Some(self.expression()?)
+            Some(self.expression()?)
         } else {
             None
         };

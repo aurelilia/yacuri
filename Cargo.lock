@@ -75,7 +75,7 @@ dependencies = [
 [[package]]
 name = "bootloader"
 version = "0.10.6"
-source = "git+https://github.com/anellie/bootloader?branch=main#c8ea06ca4ec428763cd8d353b28996c29acd1a58"
+source = "git+https://github.com/anellie/bootloader?branch=yacuri#69c45cecc4a13b3cb63ffb794a6ea2ca8d71ceed"
 
 [[package]]
 name = "bootloader-locator"

@@ -1,0 +1,9 @@
+fun main() {
+    draw_rect(300, 300, 30, 500)
+
+    draw_rect(400, 300, 300, 500)
+}
+
+extern fun draw_rect(x: i64, y: i64, w: i64, h: i64)
+
+

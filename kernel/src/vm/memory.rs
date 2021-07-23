@@ -2,11 +2,7 @@ use crate::allocator::prepare_pages;
 use alloc::boxed::Box;
 use core::{alloc::Layout, ptr::NonNull};
 use linked_list_allocator::Heap;
-use x86_64::{
-    structures::paging::{
-        mapper::MapToError, FrameAllocator, Mapper, Size4KiB,
-    },
-};
+use x86_64::structures::paging::{mapper::MapToError, FrameAllocator, Mapper, Size4KiB};
 use yacari::MemoryManager;
 
 pub const CODE_HEAP_START: usize = 0x_6666_6666_0000;

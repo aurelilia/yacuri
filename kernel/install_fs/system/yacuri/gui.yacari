@@ -1,0 +1,4 @@
+// extern fun draw_rect(x: i64, y: i64, w: i64, h: i64)
+
+fun placeholder() {
+}

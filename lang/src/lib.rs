@@ -8,10 +8,10 @@ use crate::{compiler::Compiler, error::Errors, parser::Parser, vm::JIT};
 use crate::{compiler::module::ModuleCompiler, filesystem::Filesystem};
 use alloc::{vec, vec::Vec};
 
+pub use crate::vm::SymbolTable;
 #[cfg(feature = "core")]
 pub use cranelift_jit::{set_manager, MemoryManager};
 pub use smol_str::SmolStr;
-pub use crate::vm::SymbolTable;
 
 #[cfg(feature = "std")]
 extern crate std;
@@ -37,7 +37,11 @@ pub fn execute_with_os_fs<T>(paths: &[&str], symbols: SymbolTable) -> Result<T, 
     execute_path(filesystem::os_fs::OsFs, paths, symbols)
 }
 
-pub fn execute_path<FS: Filesystem, T>(fs: FS, paths: &[&str], symbols: SymbolTable) -> Result<T, Vec<Errors>> {
+pub fn execute_path<FS: Filesystem, T>(
+    fs: FS,
+    paths: &[&str],
+    symbols: SymbolTable,
+) -> Result<T, Vec<Errors>> {
     let mut modules = Vec::with_capacity(20);
     let mut errors = Vec::new();
 
@@ -67,9 +71,9 @@ pub fn execute_path<FS: Filesystem, T>(fs: FS, paths: &[&str], symbols: SymbolTa
 mod test {
     use crate::{execute_module, execute_with_os_fs};
     extern crate std;
+    use crate::vm::SymbolTable;
     use core::fmt::Debug;
     use std::format;
-    use crate::vm::SymbolTable;
 
     fn directory<T: Debug + PartialEq>(dir: &str, expect: T, symbols: SymbolTable) {
         let res = execute_with_os_fs::<T>(&[dir], symbols).unwrap();
@@ -166,8 +170,10 @@ mod test {
 
     #[test]
     fn basic_modules() {
-        directory("tests/basic_modules", 13, &[
-            ("hello", (|| 13) as fn() -> i64 as *const u8)
-        ]);
+        directory(
+            "tests/basic_modules",
+            13,
+            &[("hello", (|| 13) as fn() -> i64 as *const u8)],
+        );
     }
 }

@@ -185,7 +185,7 @@ macro_rules! println {
 
 #[doc(hidden)]
 pub fn _print(args: fmt::Arguments) {
-    interrupts::without_interrupts(|| WRITER.lock().write_fmt(args).unwrap());
+    super::serial::_print(args);
 }
 
 pub fn vga_buffer<T: FnMut(&mut Writer)>(mut f: T) {

@@ -17,6 +17,7 @@ use yacuri::{
     hlt_loop, kprintln, println,
     scheduling::{executor::Executor, task::Task},
     vm,
+    vm::test_app,
 };
 
 entry_point!(kernel_main);
@@ -28,11 +29,13 @@ fn kernel_main(boot_info: &'static mut BootInfo) -> ! {
     init_graphics(boot_info.framebuffer.as_mut().unwrap());
     init_memory(boot_info);
 
+    test_app();
+
     #[cfg(test)]
     test_main();
 
     let mut executor = Executor::new();
-    executor.spawn(Task::new(keyboard::process_keypresses()));
+    // executor.spawn(Task::new(keyboard::process_keypresses()));
     executor.run();
 }
 

@@ -56,7 +56,7 @@ impl<'b> FnTranslator<'b> {
         }
     }
 
-    fn declare_local(&mut self, var: &ir::LocalVar) {
+    fn declare_local(&mut self, var: &ir::VarStore) {
         let last_len = self.local_offsets[var.index];
 
         let len = typesys::translate_type(&var.ty, |i, local| {
@@ -67,7 +67,7 @@ impl<'b> FnTranslator<'b> {
         self.local_offsets.push(last_len + len);
     }
 
-    fn define_local(&mut self, var: &ir::LocalVar, with: &[Value]) {
+    fn define_local(&mut self, var: &ir::VarStore, with: &[Value]) {
         let offset = self.local_offsets[var.index];
         typesys::translate_type(&var.ty, |i, _| {
             self.cl.def_var(Variable::new(offset + i), with[offset + i]);

@@ -7,7 +7,7 @@ use crate::{
         Errors, Res,
     },
     lexer::{Lexer, TKind, TKind::*, Token},
-    parser::ast::{EExpr, Expr, Function, Literal, Parameter, Type},
+    parser::ast::{EExpr, Expr, Function, Literal, Member, Parameter, Type},
     smol_str::SmolStr,
 };
 use alloc::{boxed::Box, vec::Vec};
@@ -23,12 +23,13 @@ pub struct Parser<'src> {
 impl<'src> Parser<'src> {
     pub fn parse(mut self, path: Vec<SmolStr>) -> Result<Module, Errors> {
         let mut functions = Vec::new();
+        let mut classes = Vec::new();
+
         while !self.is_at_end() {
             match self.advance().kind {
+                TKind::Class => self.make_cls(&mut classes),
                 TKind::Fun => self.make_fn(&mut functions, false),
-                TKind::Extern if self.advance().kind == TKind::Fun => {
-                    self.make_fn(&mut functions, true)
-                }
+                TKind::Extern if self.matches(Fun) => self.make_fn(&mut functions, true),
                 _ => {
                     self.errors.push(Error::new(self.current.start, E102));
                     self.synchronize()
@@ -36,9 +37,23 @@ impl<'src> Parser<'src> {
             }
         }
         if self.errors.is_empty() {
-            Ok(Module { functions, path })
+            Ok(Module {
+                functions,
+                classes,
+                path,
+            })
         } else {
             Err(self.errors)
+        }
+    }
+
+    fn make_cls(&mut self, cls: &mut Vec<ast::Class>) {
+        match self.class() {
+            Ok(f) => cls.push(f),
+            Err(e) => {
+                self.errors.push(e);
+                self.synchronize()
+            }
         }
     }
 
@@ -50,6 +65,39 @@ impl<'src> Parser<'src> {
                 self.synchronize()
             }
         }
+    }
+
+    fn class(&mut self) -> Res<ast::Class> {
+        let name = self.consume(Identifier)?;
+        self.consume(LeftBrace)?;
+
+        let mut members = Vec::new();
+        let mut methods = Vec::new();
+        let mut functions = Vec::new();
+        while !self.check(RightBrace) {
+            match self.advance().kind {
+                Val => members.push(self.member(false)?),
+                Var => members.push(self.member(true)?),
+                Fun => methods.push(self.function(false)?),
+                Static if self.matches(Fun) => functions.push(self.function(false)?),
+                _ => return Err(Error::new(self.current.start, E102)),
+            }
+        }
+        self.consume(RightBrace)?;
+
+        Ok(ast::Class {
+            name,
+            members,
+            methods,
+            functions,
+        })
+    }
+
+    fn member(&mut self, mutable: bool) -> Res<Member> {
+        let name = self.consume(Identifier)?;
+        self.consume(Colon)?;
+        let ty = self.typ()?;
+        Ok(Member { name, ty, mutable })
     }
 
     fn function(&mut self, is_ext: bool) -> Res<Function> {

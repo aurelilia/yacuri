@@ -107,11 +107,11 @@ impl<'b> FnTranslator<'b> {
             Constant::Float(float) => self.cl.ins().f64const(*float),
             Constant::String(_) => unimplemented!(),
 
-            // Functions are always their own types, so their values are essentially zero-sized.
+            // Functions/Classes are always their own types, so their values are essentially zero-sized.
             // However, cranelift of course does not have zero-sized values,
             // so we just return whatever.
             // TODO is this fine? might be reasonable to return the pointer to the function instead for FFI or something in the future?
-            Constant::Function(_) => self.cl.ins().iconst(types::I64, 0),
+            Constant::Function(_) | Constant::Class(_) => self.cl.ins().iconst(types::I64, 0),
         }
     }
 
@@ -178,8 +178,9 @@ impl<'b> FnTranslator<'b> {
 
     fn call(&mut self, callee: &Expr, args: &SmallVec<[Expr; 4]>) -> CValue {
         let func_id = {
-            let func = callee.typ().into_fn().resolve(self.ya_module);
-            get_or_declare_ir_fn(&mut self.ir_module, func)
+            let func = callee.typ().into_fn();
+            let func = func.resolve();
+            get_or_declare_ir_fn(&mut self.ir_module, &*func)
         };
 
         let local_callee = self

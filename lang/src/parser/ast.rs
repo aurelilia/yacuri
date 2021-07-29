@@ -5,6 +5,22 @@ use alloc::{boxed::Box, vec::Vec};
 pub struct Module {
     pub path: Vec<SmolStr>,
     pub functions: Vec<Function>,
+    pub classes: Vec<Class>,
+}
+
+#[derive(Debug)]
+pub struct Class {
+    pub name: Token,
+    pub members: Vec<Member>,
+    pub methods: Vec<Function>,
+    pub functions: Vec<Function>,
+}
+
+#[derive(Debug)]
+pub struct Member {
+    pub name: Token,
+    pub ty: Type,
+    pub mutable: bool,
 }
 
 #[derive(Debug)]

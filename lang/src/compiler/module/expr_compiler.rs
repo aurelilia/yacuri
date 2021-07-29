@@ -1,6 +1,6 @@
 use crate::{
     compiler::{
-        ir::{Constant, Expr, FuncRef, Function, LocalVar, Type},
+        ir::{Constant, Expr, FuncRef, Function, Type, VarStore},
         module::ModuleCompiler,
     },
     error::{ErrorKind, ErrorKind::*},
@@ -12,7 +12,7 @@ use alloc::{string::ToString, vec, vec::Vec};
 use hashbrown::HashMap;
 use smallvec::SmallVec;
 
-type Environment<'e> = HashMap<SmolStr, &'e LocalVar>;
+type Environment<'e> = HashMap<SmolStr, &'e VarStore>;
 
 pub struct ExprCompiler<'e> {
     function: &'e Function,
@@ -128,8 +128,8 @@ impl<'e> ExprCompiler<'e> {
             EExpr::Call { callee, args } => {
                 let start = callee.start;
                 let callee = self.expr(callee);
-                let func = if let Type::Function(fn_ref) = callee.typ() {
-                    fn_ref.resolve(&self.compiler.module)
+                let fn_ref = if let Type::Function(fn_ref) = callee.typ() {
+                    fn_ref
                 } else {
                     self.err(
                         start,
@@ -139,6 +139,7 @@ impl<'e> ExprCompiler<'e> {
                     );
                     return Expr::poison();
                 };
+                let func = fn_ref.resolve();
 
                 let args = args
                     .iter()
@@ -180,7 +181,7 @@ impl<'e> ExprCompiler<'e> {
         // self.compiler.errors
     }
 
-    fn find_local(&self, name: &str) -> Option<&LocalVar> {
+    fn find_local(&self, name: &str) -> Option<&VarStore> {
         self.environments
             .iter()
             .rev()
@@ -192,13 +193,17 @@ impl<'e> ExprCompiler<'e> {
     fn find_function(&self, name: &str) -> Option<FuncRef> {
         self.compiler
             .module
+            .borrow()
             .funcs
             .iter()
             .position(|func| func.name == name)
-            .map(FuncRef::Module)
+            .map(|index| FuncRef {
+                module: self.compiler.module.clone(),
+                index,
+            })
     }
 
-    fn add_to_scope(&mut self, var: &'e LocalVar) {
+    fn add_to_scope(&mut self, var: &'e VarStore) {
         self.environments
             .last_mut()
             .unwrap()

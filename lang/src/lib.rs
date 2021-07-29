@@ -8,6 +8,7 @@ use crate::{compiler::Compiler, error::Errors, parser::Parser, vm::JIT};
 use crate::{compiler::module::ModuleCompiler, filesystem::Filesystem};
 use alloc::{vec, vec::Vec};
 
+use crate::compiler::ir::Module;
 pub use crate::vm::SymbolTable;
 #[cfg(feature = "core")]
 pub use cranelift_jit::{set_manager, MemoryManager};
@@ -26,9 +27,9 @@ mod vm;
 
 pub fn execute_module<T>(program: &str, symbols: SymbolTable) -> Result<T, Errors> {
     let parse = Parser::new(program).parse(vec![SmolStr::new_inline("script")])?;
-    let ir = ModuleCompiler::new(parse).consume()?;
+    let ir = ModuleCompiler::new(Module::from_ast(parse)).consume()?;
     let mut jit = JIT::new(symbols);
-    jit.jit_module(&ir);
+    jit.jit_module(&*ir.borrow());
     Ok(jit.exec("main"))
 }
 
@@ -62,7 +63,7 @@ pub fn execute_path<FS: Filesystem, T>(
     let mut jit = JIT::new(symbols);
 
     for module in &ir {
-        jit.jit_module(module);
+        jit.jit_module(&*module.borrow());
     }
     Ok(jit.exec("main"))
 }

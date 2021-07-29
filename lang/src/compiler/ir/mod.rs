@@ -1,11 +1,16 @@
 use crate::{
+    compiler::{mutrc_new, MutRc},
     error::{Error, ErrorKind::E201, Res},
     lexer::Token,
     parser::{ast, ast::Literal},
     smol_str::SmolStr,
 };
-use alloc::boxed::Box;
-use core::{cell::RefCell, fmt, fmt::Display};
+use alloc::{boxed::Box, rc::Rc};
+use core::{
+    cell::{Ref, RefCell},
+    fmt,
+    fmt::Display,
+};
 use cranelift_module::FuncId;
 use hashbrown::HashSet;
 use smallvec::{
@@ -16,6 +21,7 @@ use smallvec::{
 #[derive(Debug)]
 pub struct Module {
     pub funcs: Vec<Function>,
+    pub classes: Vec<Class>,
     pub reserved_names: HashSet<SmolStr>,
     pub ast: ast::Module,
 }
@@ -28,22 +34,39 @@ impl Module {
             Ok(())
         }
     }
+
+    pub fn from_ast(ast: ast::Module) -> MutRc<Module> {
+        mutrc_new(Self {
+            funcs: Vec::with_capacity(ast.functions.len()),
+            classes: Vec::with_capacity(ast.classes.len()),
+            reserved_names: HashSet::with_capacity(ast.functions.len()),
+            ast,
+        })
+    }
+}
+
+#[derive(Debug)]
+pub struct Class {
+    pub name: SmolStr,
+    pub members: SmallVec<[VarStore; 5]>,
+    pub methods: Vec<FuncRef>,
+    pub functions: Vec<FuncRef>,
 }
 
 #[derive(Debug)]
 pub struct Function {
     pub name: SmolStr,
-    pub params: SmallVec<[LocalVar; 4]>,
+    pub params: SmallVec<[VarStore; 4]>,
     pub ret_type: Type,
-    pub locals: SmallVec<[LocalVar; 6]>,
+    pub locals: SmallVec<[VarStore; 6]>,
     pub body: RefCell<Expr>,
     pub ir: RefCell<Option<FuncId>>,
     pub ast: ast::Function,
 }
 
 impl Function {
-    pub fn add_local(&self, name: SmolStr, ty: Type, mutable: bool) -> &LocalVar {
-        let local = LocalVar {
+    pub fn add_local(&self, name: SmolStr, ty: Type, mutable: bool) -> &VarStore {
+        let local = VarStore {
             ty,
             name,
             index: self.locals.len(),
@@ -72,26 +95,44 @@ impl Function {
     }
 }
 
-#[allow(unused)]
-#[derive(Copy, Clone, Debug, Eq, PartialEq)]
-pub enum FuncRef {
-    // Function is in this module at contained index
-    Module(usize),
-    // Function is an import at contained index
-    Import(usize),
+#[derive(Clone, Debug)]
+pub struct FuncRef {
+    pub module: MutRc<Module>,
+    pub index: usize,
 }
 
 impl FuncRef {
-    pub fn resolve<'t>(&self, module: &'t Module) -> &'t Function {
-        match self {
-            FuncRef::Module(index) => &module.funcs[*index],
-            FuncRef::Import(_) => unimplemented!(),
-        }
+    pub fn resolve<'t>(&self) -> Ref<Function> {
+        Ref::map(self.module.borrow(), |module| &module.funcs[self.index])
+    }
+}
+
+impl PartialEq for FuncRef {
+    fn eq(&self, other: &Self) -> bool {
+        self.index == other.index && Rc::ptr_eq(&self.module, &other.module)
+    }
+}
+
+#[derive(Clone, Debug)]
+pub struct ClassRef {
+    module: MutRc<Module>,
+    index: usize,
+}
+
+impl ClassRef {
+    pub fn resolve<'t>(&self) -> Ref<Class> {
+        Ref::map(self.module.borrow(), |module| &module.classes[self.index])
+    }
+}
+
+impl PartialEq for ClassRef {
+    fn eq(&self, other: &Self) -> bool {
+        self.index == other.index && Rc::ptr_eq(&self.module, &other.module)
     }
 }
 
 #[derive(Debug)]
-pub struct LocalVar {
+pub struct VarStore {
     pub ty: Type,
     pub name: SmolStr,
     pub index: usize,
@@ -107,6 +148,7 @@ pub enum Type {
     F64,
 
     Function(FuncRef),
+    Class(ClassRef),
 }
 
 impl Type {
@@ -180,7 +222,7 @@ impl Expr {
         Self::new(IExpr::While { cond, body })
     }
 
-    pub fn local(variable: &LocalVar) -> Expr {
+    pub fn local(variable: &VarStore) -> Expr {
         Self::new(IExpr::Variable {
             index: variable.index,
             typ: variable.ty.clone(),
@@ -191,7 +233,7 @@ impl Expr {
         Self::new(IExpr::Assign { store, value })
     }
 
-    pub fn assign_local(variable: &LocalVar, value: Expr) -> Expr {
+    pub fn assign_local(variable: &VarStore, value: Expr) -> Expr {
         Self::assign(Self::local(variable), value)
     }
 
@@ -228,7 +270,8 @@ impl Expr {
             IExpr::Constant(Constant::Int(_)) => Type::I64,
             IExpr::Constant(Constant::Float(_)) => Type::F64,
             IExpr::Constant(Constant::String(_)) => unimplemented!(),
-            IExpr::Constant(Constant::Function(f)) => Type::Function(*f),
+            IExpr::Constant(Constant::Function(f)) => Type::Function(f.clone()),
+            IExpr::Constant(Constant::Class(c)) => Type::Class(c.clone()),
 
             IExpr::Block(expr) => expr.last().map(|e| e.typ()).unwrap_or(Type::Void),
 
@@ -309,6 +352,7 @@ pub enum Constant {
     Float(f64),
     String(SmolStr),
     Function(FuncRef),
+    Class(ClassRef),
 }
 
 impl Constant {

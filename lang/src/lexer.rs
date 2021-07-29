@@ -136,6 +136,8 @@ pub enum TKind {
     Or,
     #[token("return")]
     Return,
+    #[token("static")]
+    Static,
     #[token("true")]
     True,
     #[token("var")]

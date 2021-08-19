@@ -13,6 +13,7 @@ use core::{
 };
 use cranelift_module::FuncId;
 use hashbrown::HashSet;
+use indexmap::map::IndexMap;
 use smallvec::{
     alloc::{fmt::Formatter, vec::Vec},
     SmallVec,
@@ -48,9 +49,15 @@ impl Module {
 #[derive(Debug)]
 pub struct Class {
     pub name: SmolStr,
-    pub members: SmallVec<[VarStore; 5]>,
-    pub methods: Vec<FuncRef>,
-    pub functions: Vec<FuncRef>,
+    pub content: RefCell<IndexMap<SmolStr, ClassContent>>,
+    pub ast: RefCell<ast::Class>,
+}
+
+#[derive(Debug)]
+pub enum ClassContent {
+    Member(VarStore),
+    Method(FuncRef),
+    Function(FuncRef),
 }
 
 #[derive(Debug)]
@@ -105,6 +112,13 @@ impl FuncRef {
     pub fn resolve<'t>(&self) -> Ref<Function> {
         Ref::map(self.module.borrow(), |module| &module.funcs[self.index])
     }
+
+    pub fn new_last(module: &MutRc<Module>) -> Self {
+        Self {
+            module: module.clone(),
+            index: module.borrow().funcs.len() - 1,
+        }
+    }
 }
 
 impl PartialEq for FuncRef {
@@ -115,8 +129,8 @@ impl PartialEq for FuncRef {
 
 #[derive(Clone, Debug)]
 pub struct ClassRef {
-    module: MutRc<Module>,
-    index: usize,
+    pub module: MutRc<Module>,
+    pub index: usize,
 }
 
 impl ClassRef {
@@ -131,7 +145,7 @@ impl PartialEq for ClassRef {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct VarStore {
     pub ty: Type,
     pub name: SmolStr,

@@ -1,5 +1,8 @@
 use crate::{
-    compiler::{ir::Type, module::ModuleCompiler},
+    compiler::{
+        ir::{ClassRef, Type},
+        module::ModuleCompiler,
+    },
     error::{Error, ErrorKind::E200, Res},
     parser::ast,
     smol_str::SmolStr,
@@ -15,7 +18,19 @@ impl ModuleCompiler {
             "bool" => Ok(Type::Bool),
             "i64" => Ok(Type::I64),
             "f64" => Ok(Type::F64),
-            _ => Err(Error::new(position, E200(name.clone()))),
+            _ => self
+                .module
+                .borrow_mut()
+                .classes
+                .iter()
+                .position(|cls| cls.name == *name)
+                .map(|index| {
+                    Type::Class(ClassRef {
+                        module: self.module.clone(),
+                        index,
+                    })
+                })
+                .ok_or_else(|| Error::new(position, E200(name.clone()))),
         }
     }
 }

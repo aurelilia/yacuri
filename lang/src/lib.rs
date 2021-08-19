@@ -82,7 +82,11 @@ mod test {
     }
 
     fn file<T: Debug + PartialEq>(input: &str, expect: T) {
-        let res = execute_module::<T>(input, &[]).unwrap();
+        file_(input, expect, &[])
+    }
+
+    fn file_<T: Debug + PartialEq>(input: &str, expect: T, symbols: SymbolTable) {
+        let res = execute_module::<T>(input, symbols).unwrap();
         assert_eq!(res, expect)
     }
 
@@ -175,6 +179,26 @@ mod test {
             "tests/basic_modules",
             13,
             &[("hello", (|| 13) as fn() -> i64 as *const u8)],
+        );
+    }
+
+    #[test]
+    fn basic_ffi() {
+        #[repr(C)]
+        #[derive(Debug, PartialEq)]
+        struct TestStruct {
+            a: i64,
+            b: i64,
+        }
+
+        fn make_struct() -> TestStruct {
+            TestStruct { a: 24, b: 457 }
+        }
+
+        file_(
+            include_str!("../tests/basic_ffi.yacari"),
+            make_struct(),
+            &[("make_struct", make_struct as *const u8)],
         );
     }
 }

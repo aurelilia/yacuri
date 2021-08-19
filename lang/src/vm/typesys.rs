@@ -1,5 +1,5 @@
 use super::clif;
-use crate::compiler::ir;
+use crate::compiler::{ir, ir::ClassContent};
 use cranelift::prelude::*;
 use smallvec::SmallVec;
 
@@ -27,8 +27,11 @@ fn translate_type_ref<T: FnMut(usize, clif::Type)>(typ: &ir::Type, adder: &mut T
         ir::Type::Class(cls_ref) => {
             let mut count = 0;
             let cls = cls_ref.resolve();
-            for mem in &cls.members {
-                count += translate_type_ref(&mem.ty, adder);
+            for mem in cls.content.borrow().values() {
+                match mem {
+                    ClassContent::Member(mem) => count += translate_type_ref(&mem.ty, adder),
+                    _ => break,
+                }
             }
             return count;
         }
